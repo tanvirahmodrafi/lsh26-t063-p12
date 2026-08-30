@@ -1,0 +1,19 @@
+{
+  "_NOTE": "PLACEHOLDER — replace this entire file with the organizer-provided template from Discord, then fill it in. Keeping this here so we don't forget the file must exist in the final commit before 10:00 PM.",
+  "team_code": "LSH26-T063",
+  "problem": "P12",
+  "repository": "lsh26-t063-p12",
+  "members": [
+    {
+      "name": "Tanvir",
+      "email": "thesayeedjoy@gmail.com",
+      "contribution": "<what this member did>"
+    }
+  ],
+  "ai_tools_used": [
+    {
+      "tool": "Claude Code (Anthropic)",
+      "usage": "<how it was used>"
+    }
+  ]
+}
