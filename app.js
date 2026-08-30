@@ -297,11 +297,11 @@ function renderDashboard(a) {
       <div class="bar this" style="width:${w1}%"><span class="bar-label">${fmt(v.thisM)}</span></div>
       <div class="bar last" style="width:${w0}%"></div>
     </div></div>`;
-  }).join("") || `<p class="muted">No expenses yet — add one or load a sample case.</p>`;
+  }).join("") || `<p class="empty-msg">No expenses yet — add one or load a demo case.</p>`;
 
   $("#topExpenses tbody").innerHTML = a.largest.map(e =>
     `<tr><td>${e.date}</td><td>${catIcon(e.category)} ${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td></tr>`
-  ).join("") || `<tr><td class="muted">Nothing this month yet.</td></tr>`;
+  ).join("") || `<tr><td colspan="4" class="empty-cell">Nothing this month yet.</td></tr>`;
 
   renderTrend(a);
 
@@ -311,7 +311,7 @@ function renderDashboard(a) {
     `<tr><td>${e.date}</td><td>${catIcon(e.category)} ${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td>
      <td><button class="edit-btn" data-edit="${e.id}" title="edit">✎</button>
          <button class="del-btn" data-del="${e.id}" title="delete">✕</button></td></tr>`
-  ).join("");
+  ).join("") || `<tr><td colspan="5" class="empty-cell">No expenses yet — add your first expense or scan a receipt.</td></tr>`;
 }
 
 // cumulative daily spend, this month vs last, as an inline SVG line chart
@@ -335,6 +335,10 @@ function renderTrend(a) {
   };
   const thisSeries = cum(a.thisM, a.dayOf);
   const lastSeries = cum(a.lastM, null);
+  if (a.totalThis === 0 && a.totalLast === 0) {
+    el.innerHTML = `<p class="empty-msg">No spending data yet — add an expense or load a demo case.</p>`;
+    return;
+  }
   const maxY = Math.max(1, ...thisSeries, ...lastSeries, state.salary_p);
   const W = 560, H = 170, PAD = 8, DAYS = Math.max(a.dim, lastSeries.length);
   const x = (d) => PAD + ((d - 1) / (DAYS - 1)) * (W - 2 * PAD);
@@ -394,7 +398,7 @@ function renderPockets(a) {
       ${dpsBeat ? `<div class="note ok">A DPS gets you there ${plan.adjMonths - plan.dpsMonthsToTarget} month(s) earlier than a plain pocket.</div>` : ""}
       <div class="note ${plan.noteCls}">${plan.note}</div>
     </div>`;
-  }).join("") || `<div class="card muted">No pockets yet — create one above or load a sample case.</div>`;
+  }).join("") || `<div class="card"><p class="empty-msg">No savings goals yet — create a goal to see when you can afford it.</p></div>`;
 }
 
 function renderSettings() {

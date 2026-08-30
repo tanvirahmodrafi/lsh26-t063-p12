@@ -85,7 +85,7 @@ main { flex: 1; padding: 32px 36px 48px; max-width: 1240px; width: 100%; margin:
 .sync[data-state="off"]::before { color: var(--warning); }
 .sync:empty::before { content: ""; }
 .case-picker { display: flex; flex-direction: column; gap: 4px; }
-.case-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.case-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); white-space: nowrap; }
 .sidebar-meta { font-size: 10.5px; color: var(--muted); padding-top: 2px; }
 
 /* ============ tab panes ============ */
@@ -187,6 +187,9 @@ button.ghost:not(.btn) { background: none; border: 1px solid var(--border-strong
 .table tbody tr:last-child td { border-bottom: none; }
 .table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 550; }
 .table.compact td { padding: 9px 8px; }
+.table.compact td:first-child { white-space: nowrap; }
+.table td:last-child { white-space: nowrap; }
+#forecastTable td.num:not(:last-child) { color: var(--ink-2); font-weight: 450; }
 .table-scroll { overflow-x: auto; max-height: 460px; overflow-y: auto; }
 .actions-col { width: 64px; }
 .del-btn, .edit-btn {
@@ -300,6 +303,8 @@ input[type="date"] { color-scheme: dark; }
 /* ============ misc ============ */
 .hidden { display: none !important; }
 .muted { color: var(--muted); font-size: 12px; }
+.empty-msg { color: var(--muted); font-size: 13px; text-align: center; padding: 26px 12px; margin: 0; }
+.empty-cell { text-align: center; color: var(--muted); padding: 26px 12px !important; }
 
 /* ============ responsive ============ */
 @media (max-width: 1099px) {
