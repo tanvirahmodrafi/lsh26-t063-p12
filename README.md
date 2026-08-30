@@ -48,7 +48,7 @@ Use the **"load sample case"** dropdown (top right) to load any of the 25 public
 
 ## Team
 
-- Tanvir (thesayeedjoy@gmail.com)
+- Tanvir (tanvirahmod.cn@gmail.com)
 
 ## Tech stack
 
