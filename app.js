@@ -60,7 +60,32 @@ let state = {
 };
 let nextId = 1;
 
-function save() { localStorage.setItem(LS_KEY, JSON.stringify({ state, nextId })); }
+// each browser gets its own ledger id, synced to Neon Postgres via /api/ledger
+const syncId = (() => {
+  let id = localStorage.getItem("p12-sync-id");
+  if (!id) { id = "L" + Math.random().toString(36).slice(2, 12); localStorage.setItem("p12-sync-id", id); }
+  return id;
+})();
+let syncTimer = null;
+function setSyncStatus(txt) { const el = document.getElementById("syncStatus"); if (el) el.textContent = txt; }
+function pushToCloud() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    try {
+      setSyncStatus("☁ saving…");
+      const r = await fetch("/api/ledger", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: syncId, state: { state, nextId } }),
+      });
+      setSyncStatus(r.ok ? "☁ saved" : "☁ offline");
+    } catch (e) { setSyncStatus("☁ offline"); }
+  }, 800);
+}
+function save() {
+  localStorage.setItem(LS_KEY, JSON.stringify({ state, nextId }));
+  pushToCloud();
+}
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -370,6 +395,7 @@ function setupEvents() {
   $("#resetBtn").addEventListener("click", () => {
     if (!confirm("Clear all data?")) return;
     localStorage.removeItem(LS_KEY);
+    localStorage.removeItem("p12-sync-id"); // fresh cloud ledger too
     location.reload();
   });
 
@@ -427,6 +453,22 @@ function setupEvents() {
   });
 }
 
-load();
-setupEvents();
-renderAll();
+async function init() {
+  load();               // localStorage first — instant paint
+  setupEvents();
+  renderAll();
+  try {                 // then prefer the cloud copy if one exists
+    const r = await fetch(`/api/ledger?id=${syncId}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.state && d.state.state) {
+        state = d.state.state;
+        nextId = d.state.nextId || nextId;
+        localStorage.setItem(LS_KEY, JSON.stringify({ state, nextId }));
+        renderAll();
+      }
+      setSyncStatus("☁ synced");
+    } else setSyncStatus("☁ offline");
+  } catch (e) { setSyncStatus("☁ offline"); }
+}
+init();

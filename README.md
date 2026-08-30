@@ -38,7 +38,7 @@ Use the **"load sample case"** dropdown (top right) to load any of the 25 public
 
 ## What's mocked / limitations
 
-- Data lives in the browser's localStorage — no accounts or server database (single-user tool by design).
+- Each browser gets an anonymous ledger id and its data is persisted to Neon Postgres via `/api/ledger` (localStorage doubles as an instant-paint cache and offline fallback). No accounts/login by design.
 - Pockets track the plan from "this month" forward; past pocket balances aren't modeled.
 - OCR category is a guess; the user confirms before saving.
 
@@ -52,4 +52,4 @@ Use the **"load sample case"** dropdown (top right) to load any of the 25 public
 
 ## Tech stack
 
-Vanilla HTML/CSS/JS (no framework, no build), Vercel serverless function (Node), OpenRouter vision API for OCR.
+Vanilla HTML/CSS/JS (no framework, no build), Vercel serverless functions (Node), Neon Postgres for persistence (HTTP SQL API, no driver dependency), OpenRouter vision API for OCR.

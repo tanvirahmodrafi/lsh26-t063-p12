@@ -12,6 +12,7 @@ None. The app is hand-written vanilla HTML, CSS and JavaScript with no runtime d
 |------|---------|-------|
 | Vercel | Hosting + serverless function runtime | Vercel platform ToS (hosting only; no Vercel code shipped in the repo) |
 | OpenRouter API (Google Gemini 2.5 Flash Lite / Flash) | Receipt OCR at runtime via HTTPS API | OpenRouter/Google API terms (API service; no third-party code shipped in the repo) |
+| Neon (Postgres) | Ledger persistence at runtime via Neon's HTTP SQL API | Neon platform ToS (database service; no driver or third-party code shipped in the repo) |
 
 ## Fonts
 
