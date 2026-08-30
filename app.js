@@ -350,10 +350,10 @@ function renderTrend(a) {
     <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--baseline)" stroke-width="1"/>
     <line x1="${PAD}" y1="${salaryY}" x2="${W - PAD}" y2="${salaryY}" stroke="var(--baseline)" stroke-width="1" stroke-dasharray="4 4"/>
     <text x="${W - PAD}" y="${Number(salaryY) < 14 ? Number(salaryY) + 12 : Number(salaryY) - 4}" text-anchor="end" font-size="10" fill="var(--muted)">salary ${fmt(state.salary_p)}</text>
-    <path d="${path(lastSeries)}" fill="none" stroke="var(--series-0)" stroke-width="2" stroke-linejoin="round"/>
-    <path d="${path(thisSeries)}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
-    ${thisSeries.length ? `<circle cx="${x(thisSeries.length)}" cy="${y(thisSeries[thisSeries.length - 1])}" r="3.5" fill="var(--series-1)"/>
-    <text x="${Math.min(x(thisSeries.length) + 6, W - 70)}" y="${Math.max(12, y(thisSeries[thisSeries.length - 1]) - 6)}" font-size="10" fill="var(--ink-2)">${fmt(thisSeries[thisSeries.length - 1])}</text>` : ""}
+    <path class="trend-line trend-last" pathLength="1" d="${path(lastSeries)}" fill="none" stroke="var(--series-0)" stroke-width="2" stroke-linejoin="round"/>
+    <path class="trend-line trend-this" pathLength="1" d="${path(thisSeries)}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
+    ${thisSeries.length ? `<g class="trend-end"><circle cx="${x(thisSeries.length)}" cy="${y(thisSeries[thisSeries.length - 1])}" r="3.5" fill="var(--series-1)"/>
+    <text x="${Math.min(x(thisSeries.length) + 6, W - 70)}" y="${Math.max(12, y(thisSeries[thisSeries.length - 1]) - 6)}" font-size="10" fill="var(--ink-2)">${fmt(thisSeries[thisSeries.length - 1])}</text></g>` : ""}
     <text x="${PAD}" y="${H - PAD + 0}" font-size="0"> </text>
   </svg>
   <div class="muted" style="display:flex;justify-content:space-between"><span>day 1</span><span>day ${DAYS}</span></div>`;
