@@ -5,159 +5,271 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Punji — Personal Ledger Manager</title>
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234F8EF7'/><text x='50' y='72' font-size='58' text-anchor='middle' fill='white' font-family='system-ui'>৳</text></svg>">
 </head>
 <body>
-<header class="topbar">
-  <h1>💰 Punji</h1>
-  <div class="topbar-right">
-    <span id="syncStatus" class="muted" title="Ledger is saved to the cloud (Neon Postgres)"></span>
-    <select id="caseSelect" title="Load a sample case">
-      <option value="">— load sample case —</option>
-    </select>
-    <button id="resetBtn" class="ghost" title="Clear all data">Reset</button>
+<div class="shell">
+
+<aside class="sidebar">
+  <div class="brand">
+    <span class="brand-mark">৳</span>
+    <span class="brand-text">
+      <span class="brand-name">Punji</span>
+      <span class="brand-sub">Personal ledger</span>
+    </span>
   </div>
-</header>
 
-<nav class="tabs" role="tablist">
-  <button class="tab active" data-tab="dashboard">Dashboard</button>
-  <button class="tab" data-tab="add">Add Expense</button>
-  <button class="tab" data-tab="forecast">Forecast &amp; Insights</button>
-  <button class="tab" data-tab="pockets">Savings Pockets</button>
-  <button class="tab" data-tab="settings">Settings</button>
-</nav>
+  <nav class="tabs" role="tablist" aria-label="Main navigation">
+    <button class="tab active" data-tab="dashboard"><span class="tab-ic">◧</span>Overview</button>
+    <button class="tab" data-tab="add"><span class="tab-ic">＋</span>Add expense</button>
+    <button class="tab" data-tab="forecast"><span class="tab-ic">◔</span>Forecast</button>
+    <button class="tab" data-tab="pockets"><span class="tab-ic">◎</span>Savings</button>
+    <button class="tab" data-tab="settings"><span class="tab-ic">⚙</span>Settings</button>
+  </nav>
 
+  <div class="sidebar-foot">
+    <span id="syncStatus" class="sync" data-state="ok"></span>
+    <label class="case-picker">
+      <span class="case-label">Demo case</span>
+      <select id="caseSelect" title="Load a sample case">
+        <option value="">— none —</option>
+      </select>
+    </label>
+    <button id="resetBtn" class="btn subtle-danger" title="Clear all data">Reset data</button>
+    <div class="sidebar-meta">LSH26-T063 · P12</div>
+  </div>
+</aside>
+
+<div class="main">
 <main>
+
   <!-- ============ DASHBOARD ============ -->
   <section id="tab-dashboard" class="tabpane active">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">Personal ledger</div>
+        <h1>Financial overview</h1>
+        <p class="page-sub">Your spending, cash flow and monthly position.</p>
+      </div>
+      <button class="btn primary" onclick="document.querySelector('[data-tab=&quot;add&quot;]').click()">＋ Add expense</button>
+    </header>
+
     <div class="stat-row" id="statRow"></div>
-    <div class="grid2">
-      <div class="card">
-        <h2>Spending by category <span class="muted" id="catMonthLabel"></span></h2>
-        <div class="legend">
-          <span class="legend-item"><span class="swatch s1"></span>This month</span>
-          <span class="legend-item"><span class="swatch s0"></span>Last month</span>
+
+    <div class="dash-grid">
+      <div class="dash-left">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Spending trend</h2>
+              <p class="card-sub">Cumulative spending throughout the month</p>
+            </div>
+            <div class="legend">
+              <span class="legend-item"><span class="swatch s1"></span>This month</span>
+              <span class="legend-item"><span class="swatch s0"></span>Last month</span>
+              <span class="legend-item"><span class="swatch dashed"></span>Salary</span>
+            </div>
+          </div>
+          <span id="trendLabel" class="hidden"></span>
+          <div id="trendChart"></div>
         </div>
-        <div id="catChart" class="barchart"></div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Transactions <span class="muted" id="expCount"></span></h2>
+              <p class="card-sub">All recorded expenses, newest first</p>
+            </div>
+            <button class="btn secondary" onclick="document.querySelector('[data-tab=&quot;add&quot;]').click()">Add expense</button>
+          </div>
+          <div class="table-scroll">
+            <table class="table" id="expTable">
+              <thead><tr><th>Date</th><th>Merchant / Category</th><th>Shop</th><th class="num">Amount</th><th class="actions-col"></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <div class="card">
-        <h2>Largest expenses this month</h2>
-        <table class="table" id="topExpenses"><tbody></tbody></table>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Cumulative spending <span class="muted" id="trendLabel">— this month vs last</span></h2>
-      <div class="legend">
-        <span class="legend-item"><span class="swatch s1"></span>This month</span>
-        <span class="legend-item"><span class="swatch s0"></span>Last month</span>
-      </div>
-      <div id="trendChart"></div>
-    </div>
-    <div class="card">
-      <h2>All expenses <span class="muted" id="expCount"></span></h2>
-      <div class="table-scroll">
-        <table class="table" id="expTable">
-          <thead><tr><th>Date</th><th>Category</th><th>Shop</th><th class="num">Amount</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
+
+      <div class="dash-right">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Spending by category</h2>
+              <p class="card-sub" id="catMonthLabel"></p>
+            </div>
+          </div>
+          <div class="legend legend-tight">
+            <span class="legend-item"><span class="swatch s1"></span>This month</span>
+            <span class="legend-item"><span class="swatch s0"></span>Last month</span>
+          </div>
+          <div id="catChart" class="barchart"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Largest expenses</h2>
+              <p class="card-sub">Top five this month</p>
+            </div>
+          </div>
+          <table class="table compact" id="topExpenses"><tbody></tbody></table>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- ============ ADD EXPENSE ============ -->
   <section id="tab-add" class="tabpane">
-    <div class="grid2">
-      <div class="card">
-        <h2>📷 From a receipt photo</h2>
-        <p class="muted">Upload a photo of a bill or receipt. We read the amount, date and shop — check the values and correct anything before saving.</p>
-        <input type="file" id="receiptFile" accept="image/*">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">Ledger entry</div>
+        <h1>Add an expense</h1>
+        <p class="page-sub">Enter it manually or scan a receipt.</p>
+      </div>
+    </header>
+
+    <div class="add-grid">
+      <div class="card form-card">
+        <div class="card-head"><div><h2>Expense details</h2><p class="card-sub">Everything is editable before it's saved</p></div></div>
+        <form id="expForm">
+          <div class="form-row">
+            <label>Date <input type="date" id="expDate" required></label>
+            <label>Category
+              <input type="text" id="expCategory" list="catList" required placeholder="Groceries">
+              <datalist id="catList"></datalist>
+            </label>
+          </div>
+          <label>Merchant / shop <input type="text" id="expShop" required placeholder="e.g. Meena Bazar"></label>
+          <label class="amount-label">Amount
+            <span class="amount-wrap"><span class="currency">৳</span>
+            <input type="number" id="expAmount" step="0.01" min="0.01" required placeholder="0.00"></span>
+          </label>
+          <button type="submit" id="expSubmitBtn" class="btn primary wide">Save expense</button>
+        </form>
+        <div id="saveMsg" class="save-msg" role="status"></div>
+      </div>
+
+      <div class="card scanner-card">
+        <div class="card-head"><div><h2>Receipt scanner</h2><p class="card-sub">We read the amount, date and shop — you verify before saving</p></div></div>
+        <label class="dropzone" for="receiptFile">
+          <input type="file" id="receiptFile" accept="image/*">
+          <span class="dz-icon">🧾</span>
+          <span class="dz-title">Drop a receipt here</span>
+          <span class="dz-sub">or click to choose an image · JPG / PNG</span>
+        </label>
         <div id="receiptPreviewWrap" class="hidden">
           <img id="receiptPreview" alt="receipt preview">
         </div>
-        <div id="ocrStatus" class="muted"></div>
+        <div id="ocrStatus" class="ocr-status" role="status"></div>
         <div id="ocrResult" class="ocr-result hidden">
-          <h3>What we read from the receipt:</h3>
+          <h3>Detected from receipt</h3>
           <ul id="ocrReadList"></ul>
-          <p class="muted">These values were copied into the form → check &amp; correct them, then Save.</p>
+          <p class="ocr-note">✓ These values were copied into the form — review and correct them, then save.</p>
         </div>
-      </div>
-      <div class="card">
-        <h2>✍️ Expense details</h2>
-        <form id="expForm">
-          <label>Date <input type="date" id="expDate" required></label>
-          <label>Category
-            <input type="text" id="expCategory" list="catList" required placeholder="e.g. Groceries">
-            <datalist id="catList"></datalist>
-          </label>
-          <label>Shop <input type="text" id="expShop" required placeholder="e.g. Meena Bazar"></label>
-          <label>Amount (BDT) <input type="number" id="expAmount" step="0.01" min="0.01" required placeholder="0.00"></label>
-          <button type="submit" id="expSubmitBtn" class="primary">Save expense</button>
-        </form>
-        <div id="saveMsg" class="save-msg"></div>
       </div>
     </div>
   </section>
 
   <!-- ============ FORECAST ============ -->
   <section id="tab-forecast" class="tabpane">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">Projection</div>
+        <h1>Monthly forecast</h1>
+        <p class="page-sub">See where your spending is likely to land by month end.</p>
+      </div>
+    </header>
+
     <div class="stat-row" id="forecastStats"></div>
+
     <div class="card">
-      <h2>💡 Insights</h2>
+      <div class="card-head"><div><h2>Insights</h2><p class="card-sub">Patterns detected from your actual ledger</p></div></div>
       <ul id="insightsList" class="insights"></ul>
     </div>
+
     <div class="card">
-      <h2>Forecast by category (rest of this month)</h2>
+      <div class="card-head"><div><h2>Category forecast</h2><p class="card-sub">Rest-of-month projection per category</p></div></div>
       <div class="table-scroll">
         <table class="table" id="forecastTable">
           <thead><tr><th>Category</th><th class="num">Spent so far</th><th class="num">Last month</th><th class="num">Expected more</th><th class="num">Projected total</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <p class="muted" id="forecastMethod"></p>
+      <div class="method-panel">
+        <span class="method-title">Methodology</span>
+        <p class="muted" id="forecastMethod"></p>
+      </div>
     </div>
   </section>
 
   <!-- ============ POCKETS ============ -->
   <section id="tab-pockets" class="tabpane">
-    <div class="grid2">
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">Goals</div>
+        <h1>Savings goals</h1>
+        <p class="page-sub">Plan purchases and see how your monthly cash flow affects them.</p>
+      </div>
+    </header>
+
+    <div class="pockets-top">
       <div class="card">
-        <h2>New savings pocket</h2>
+        <div class="card-head"><div><h2>New savings goal</h2><p class="card-sub">A pocket for something specific</p></div></div>
         <form id="pocketForm">
-          <label>Name <input type="text" id="pkName" required placeholder="e.g. Bike"></label>
-          <label>Item details <input type="text" id="pkItem" required placeholder="e.g. Honda Livo"></label>
-          <label>Target amount (BDT) <input type="number" id="pkTarget" step="0.01" min="1" required></label>
-          <label>Monthly contribution (BDT) <input type="number" id="pkContrib" step="0.01" min="1" required></label>
-          <button type="submit" class="primary">Create pocket</button>
+          <div class="form-row">
+            <label>Name <input type="text" id="pkName" required placeholder="Bike"></label>
+            <label>Item details <input type="text" id="pkItem" required placeholder="Honda Livo"></label>
+          </div>
+          <div class="form-row">
+            <label>Target (BDT) <input type="number" id="pkTarget" step="0.01" min="1" required></label>
+            <label>Monthly contribution (BDT) <input type="number" id="pkContrib" step="0.01" min="1" required></label>
+          </div>
+          <button type="submit" class="btn primary">Create savings goal</button>
         </form>
       </div>
       <div class="card">
-        <h2>DPS rate</h2>
-        <label>Annual DPS rate (%) <input type="number" id="dpsRate" step="0.01" min="0" max="30"></label>
-        <p class="muted">Rule: each month the deposit joins the balance, then interest = balance × rate ÷ 12 ÷ 100, rounded half-up to the paisa, joins the balance too.</p>
+        <div class="card-head"><div><h2>DPS comparison</h2><p class="card-sub">Deposits earn monthly compound interest per the challenge rule</p></div></div>
+        <label>Annual interest rate (%) <input type="number" id="dpsRate" step="0.01" min="0" max="30"></label>
+        <p class="muted small-note">Each month the deposit joins the balance, then interest = balance × rate ÷ 12 ÷ 100, rounded half-up to the paisa, joins the balance too.</p>
       </div>
     </div>
+
     <div id="pocketCards"></div>
   </section>
 
   <!-- ============ SETTINGS ============ -->
   <section id="tab-settings" class="tabpane">
-    <div class="card">
-      <h2>Basics</h2>
-      <label>Monthly salary (BDT) <input type="number" id="salaryInput" step="0.01" min="0"></label>
-      <label>Today's date <input type="date" id="todayInput"></label>
-      <p class="muted">"Today" controls which month is "this month" and how the forecast splits the month. Loading a sample case sets it automatically.</p>
-    </div>
-    <div class="card">
-      <h2>Export</h2>
-      <div style="display:flex;gap:10px">
-        <button id="exportJson" class="ghost">⬇ Ledger as JSON</button>
-        <button id="exportCsv" class="ghost">⬇ Expenses as CSV</button>
+    <header class="page-head">
+      <div>
+        <div class="eyebrow">Configuration</div>
+        <h1>Settings</h1>
+        <p class="page-sub">Financial basics and your data.</p>
+      </div>
+    </header>
+
+    <div class="settings-col">
+      <div class="card">
+        <div class="card-head"><div><h2>Financial settings</h2></div></div>
+        <label>Monthly salary (BDT) <input type="number" id="salaryInput" step="0.01" min="0"></label>
+        <label>Ledger date <input type="date" id="todayInput"></label>
+        <p class="muted small-note">The ledger date controls what Punji considers "this month" and how the forecast splits it. Loading a demo case sets it automatically.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h2>Data</h2></div></div>
+        <div class="btn-row">
+          <button id="exportJson" class="btn secondary">⬇ Ledger as JSON</button>
+          <button id="exportCsv" class="btn secondary">⬇ Expenses as CSV</button>
+        </div>
       </div>
     </div>
   </section>
-</main>
 
-<footer class="muted">LSH26-T063 · Lofi-stack Hackathon 2026 · P12 Personal Ledger Manager</footer>
+</main>
+<footer class="app-foot muted">LSH26-T063 · Lofi-stack Hackathon 2026 · P12 Personal Ledger Manager</footer>
+</div>
+
+</div>
 <script src="app.js"></script>
 </body>
 </html>

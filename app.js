@@ -80,7 +80,12 @@ function download(name, content, type) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
-function setSyncStatus(txt) { const el = document.getElementById("syncStatus"); if (el) el.textContent = txt; }
+function setSyncStatus(txt) {
+  const el = document.getElementById("syncStatus");
+  if (!el) return;
+  el.textContent = txt.replace("☁ ", "");
+  el.dataset.state = txt.includes("offline") ? "off" : "ok";
+}
 function pushToCloud() {
   clearTimeout(syncTimer);
   syncTimer = setTimeout(async () => {
@@ -240,18 +245,26 @@ function pocketPlan(p, a) {
   }
 
   const planMonths = Math.ceil(p.target_p / p.contrib_p);
-  const adjMonths = Math.min(600, Math.ceil(p.target_p / effContrib));
-  const doneYm = addMonths(a.thisM, adjMonths);
+  const doneYm = addMonths(a.thisM, planMonths);
 
-  // DPS simulation over the (adjusted) plan horizon with the PLANNED contribution
+  // forecast-adjusted pace, folded into the note (kept sane for display)
+  if (effContrib < p.contrib_p) {
+    const adjMonths = Math.ceil(p.target_p / effContrib);
+    const adjLabel = adjMonths > 120
+      ? "over 10 years at that pace"
+      : `${monthName(addMonths(a.thisM, adjMonths))} (${adjMonths} mo)`;
+    note += ` At that pace this goal lands ${adjLabel}.`;
+  }
+
+  // DPS simulation over the plan horizon with the planned contribution
   let bal = 0, dpsMonthsToTarget = null, totalInterest = 0;
-  for (let m = 1; m <= Math.max(adjMonths, 1); m++) {
+  for (let m = 1; m <= Math.max(planMonths, 1); m++) {
     bal += p.contrib_p;
     const i = dpsInterest(bal, rateBp);
     bal += i; totalInterest += i;
     if (dpsMonthsToTarget === null && bal >= p.target_p) dpsMonthsToTarget = m;
   }
-  return { planMonths, adjMonths, doneYm, dpsFinal: bal, dpsInterestTotal: totalInterest, dpsMonthsToTarget, note, noteCls, effContrib };
+  return { planMonths, adjMonths: planMonths, doneYm, dpsFinal: bal, dpsInterestTotal: totalInterest, dpsMonthsToTarget, note, noteCls, effContrib };
 }
 
 // ---------- rendering ----------
@@ -330,7 +343,7 @@ function renderTrend(a) {
   const salaryY = y(state.salary_p).toFixed(1);
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cumulative spending, this month vs last month">
     <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--baseline)" stroke-width="1"/>
-    <line x1="${PAD}" y1="${salaryY}" x2="${W - PAD}" y2="${salaryY}" stroke="var(--grid)" stroke-width="1" stroke-dasharray="4 4"/>
+    <line x1="${PAD}" y1="${salaryY}" x2="${W - PAD}" y2="${salaryY}" stroke="var(--baseline)" stroke-width="1" stroke-dasharray="4 4"/>
     <text x="${W - PAD}" y="${Number(salaryY) < 14 ? Number(salaryY) + 12 : Number(salaryY) - 4}" text-anchor="end" font-size="10" fill="var(--muted)">salary ${fmt(state.salary_p)}</text>
     <path d="${path(lastSeries)}" fill="none" stroke="var(--series-0)" stroke-width="2" stroke-linejoin="round"/>
     <path d="${path(thisSeries)}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
