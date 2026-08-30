@@ -36,6 +36,14 @@ Use the **"load sample case"** dropdown (top right) to load any of the 25 public
 - **Pocket completion** — `ceil(target ÷ contribution)` months; if the forecast leftover can't cover the sum of all pocket contributions, each pocket's affordable share is scaled down proportionally and its date pushed out (shown with a warning).
 - **Receipt OCR** — `/api/ocr` serverless function sends the image to a vision model via OpenRouter (Gemini 2.5 Flash Lite, with Flash as fallback) and returns shop/date/amount/category. The raw reading is always displayed for user verification before saving.
 
+## Beyond the four requirements
+
+- **Financial health status** — a deterministic verdict ("On track / Watch spending / At risk / Projected deficit") derived from the forecast, with real amounts in the supporting sentence.
+- **"Why this forecast?"** — per-category explainability: which rule fired (variable / lumpy / repeat / new), the transaction count, run rate and inputs behind every projected number.
+- **What-if simulator** — non-persistent scenario tool: pick a category, reduce future spend, see the projected month-end balance change (capped so simulated spend never drops below what's already spent).
+- **PDF monthly report** — one-click, print-stylesheet-based report (health status, KPIs, category table, top expenses, savings goals with DPS interest) via the browser's Save-as-PDF; CSV export for raw expenses.
+- **Charts & polish** — animated cumulative trend, daily spending bars, salary-allocation bar, category comparison bars; premium dark UI, responsive to 390px.
+
 ## What's mocked / limitations
 
 - Each browser gets an anonymous ledger id and its data is persisted to Neon Postgres via `/api/ledger` (localStorage doubles as an instant-paint cache and offline fallback). No accounts/login by design.
@@ -44,7 +52,7 @@ Use the **"load sample case"** dropdown (top right) to load any of the 25 public
 
 ## Next steps
 
-- Export/import ledger as JSON; multi-month history view; pocket balance tracking with actual deposits; PWA offline mode.
+- Multi-month history view; pocket balance tracking with actual deposits; shared/family ledgers; PWA offline mode.
 
 ## Team
 
