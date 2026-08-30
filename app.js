@@ -3,6 +3,9 @@
 
 const CATEGORIES = ["Clothing","Education","Entertainment","Food","Groceries","Health","Mobile","Rent","Transport","Utilities"];
 const LS_KEY = "p12-ledger-v1";
+// When served from a plain file server (local dev), the serverless functions
+// don't exist locally — fall back to the production API.
+const API_BASE = location.hostname.endsWith("vercel.app") ? "" : "https://lsh26-t063-p12.vercel.app";
 
 // ---------- money helpers (integer paisa) ----------
 function toPaisa(x) {
@@ -73,7 +76,7 @@ function pushToCloud() {
   syncTimer = setTimeout(async () => {
     try {
       setSyncStatus("☁ saving…");
-      const r = await fetch("/api/ledger", {
+      const r = await fetch(API_BASE + "/api/ledger", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: syncId, state: { state, nextId } }),
@@ -403,22 +406,34 @@ function setupEvents() {
   $("#receiptFile").addEventListener("change", async (ev) => {
     const file = ev.target.files[0];
     if (!file) return;
+    // downscale + JPEG-compress so large phone photos stay under upload limits
     const dataUrl = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1600;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(img.src);
+        res(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = rej;
+      img.src = URL.createObjectURL(file);
     });
     $("#receiptPreview").src = dataUrl;
     $("#receiptPreviewWrap").classList.remove("hidden");
     $("#ocrStatus").textContent = "Reading receipt…";
     $("#ocrResult").classList.add("hidden");
     try {
-      const resp = await fetch("/api/ocr", {
+      const resp = await fetch(API_BASE + "/api/ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: dataUrl }),
       });
+      const ct = resp.headers.get("content-type") || "";
+      if (!ct.includes("json")) throw new Error("API returned " + resp.status + " (not JSON) — is the API deployed/reachable?");
       const d = await resp.json();
       if (!resp.ok) throw new Error(d.error || "OCR failed");
       $("#ocrStatus").textContent = "";
@@ -458,7 +473,7 @@ async function init() {
   setupEvents();
   renderAll();
   try {                 // then prefer the cloud copy if one exists
-    const r = await fetch(`/api/ledger?id=${syncId}`);
+    const r = await fetch(`${API_BASE}/api/ledger?id=${syncId}`);
     if (r.ok) {
       const d = await r.json();
       if (d.state && d.state.state) {
