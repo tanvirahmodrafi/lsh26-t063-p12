@@ -303,6 +303,7 @@ function renderDashboard(a) {
     `<tr><td>${e.date}</td><td>${catIcon(e.category)} ${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td></tr>`
   ).join("") || `<tr><td colspan="4" class="empty-cell">Nothing this month yet.</td></tr>`;
 
+  renderHealth(a);
   renderTrend(a);
   renderDaily(a);
 
@@ -313,6 +314,130 @@ function renderDashboard(a) {
      <td><button class="edit-btn" data-edit="${e.id}" title="edit">✎</button>
          <button class="del-btn" data-del="${e.id}" title="delete">✕</button></td></tr>`
   ).join("") || `<tr><td colspan="5" class="empty-cell">No expenses yet — add your first expense or scan a receipt.</td></tr>`;
+}
+
+// deterministic financial health status (Overview) — derived, never stored
+function renderHealth(a) {
+  const wrap = $("#healthStatus"), pill = $("#healthStatusLabel"), text = $("#healthStatusText");
+  if (!wrap) return;
+  wrap.classList.remove("hidden");
+  let tone, label, msg;
+  if (state.salary_p <= 0) {
+    tone = "neutral"; label = "Salary not set";
+    msg = "Set your monthly salary in Settings to unlock the forecast.";
+  } else if (a.leftover < 0) {
+    tone = "bad"; label = "Projected deficit";
+    msg = `Projected spending exceeds salary by ${fmt(-a.leftover)}.`;
+  } else {
+    const ratio = a.leftover / state.salary_p;
+    if (ratio >= 0.20) {
+      tone = "good"; label = "On track";
+      msg = `Projected to keep ${fmt(a.leftover)} at month end.`;
+    } else if (ratio >= 0.08) {
+      tone = "warn"; label = "Watch spending";
+      msg = `Only ${fmt(a.leftover)} of your ${fmt(state.salary_p)} salary is projected to remain.`;
+    } else {
+      tone = "warn"; label = "At risk";
+      msg = `Current pace leaves only ${fmt(a.leftover)} at month end.`;
+    }
+  }
+  const totalContrib = state.pockets.reduce((s, p) => s + p.contrib_p, 0);
+  if (state.salary_p > 0 && totalContrib > 0) {
+    msg += a.leftover >= totalContrib
+      ? ` All ${state.pockets.length} savings goal(s) remain fully fundable.`
+      : (a.leftover > 0 ? ` Savings goals are only partially fundable this month.` : ``);
+  }
+  wrap.dataset.tone = tone;
+  pill.textContent = (tone === "good" ? "● " : tone === "neutral" ? "○ " : "▲ ") + label;
+  text.textContent = msg;
+}
+
+// classify a category exactly as analyze() does — read-only mirror for explanations
+function explainMethod(v) {
+  if (v.lastM > 0 && v.thisM > 0) return v.thisCount < 3 ? "lumpy" : "variable";
+  if (v.lastM > 0) return "repeat";
+  return "new";
+}
+
+function renderExplain(a) {
+  const el = $("#forecastExplainList");
+  if (!el) return;
+  const METHOD_TEXT = {
+    variable: "Variable spending — the average of last month's total and this month's run rate, never below what has already been spent.",
+    lumpy: "Lumpy spending — the higher of spending so far and last month's total.",
+    repeat: "No activity yet this month, so last month's amount is repeated.",
+    new: "New category this month, so the projection follows the current run rate.",
+  };
+  const METHOD_LABEL = { variable: "Variable spending", lumpy: "Lumpy spending", repeat: "Repeat of last month", new: "New category" };
+  const rows = Object.entries(a.forecast).sort((x, y) => y[1].projected - x[1].projected);
+  el.innerHTML = rows.map(([cat, v]) => {
+    const method = explainMethod(v);
+    const runRate = a.dayOf > 0 ? Math.round((v.thisM * a.dim) / a.dayOf) : v.thisM;
+    const facts = [
+      `${v.thisCount} transaction(s) this month`,
+      `Spent so far: <strong>${fmt(v.thisM)}</strong>`,
+      `Last month: <strong>${fmt(v.lastM)}</strong>`,
+      (method === "variable" || method === "new") ? `Current run rate: <strong>${fmt(runRate)}</strong>` : null,
+      `Final projection: <strong>${fmt(v.projected)}</strong>`,
+    ].filter(Boolean);
+    return `<details class="explain">
+      <summary>${catIcon(cat)} ${cat} <span class="explain-meta">${METHOD_LABEL[method]} · ${fmt(v.projected)}</span></summary>
+      <p class="explain-method">${METHOD_TEXT[method]}</p>
+      <ul class="explain-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>
+    </details>`;
+  }).join("") || `<p class="empty-msg">No categories to explain yet.</p>`;
+}
+
+// What-if simulator — purely derived, nothing is persisted
+function populateWhatIf(a) {
+  const sel = $("#whatIfCategory");
+  if (!sel) return;
+  const prev = sel.value;
+  const cats = Object.entries(a.forecast).sort((x, y) => (y[1].projected - y[1].thisM) - (x[1].projected - x[1].thisM));
+  sel.innerHTML = cats.map(([cat, v]) =>
+    `<option value="${cat}">${cat} — ${fmt(Math.max(0, v.projected - v.thisM))} reducible</option>`).join("");
+  if (prev && cats.some(([c]) => c === prev)) sel.value = prev;
+  sel.disabled = cats.length === 0;
+}
+
+function runWhatIf() {
+  const out = $("#whatIfResult");
+  const a = analyze();
+  const cat = $("#whatIfCategory").value;
+  const v = a.forecast[cat];
+  if (!v) { out.classList.add("hidden"); return; }
+  const req = toPaisa($("#whatIfAmount").value) || 0;
+  const cap = Math.max(0, v.projected - v.thisM);
+  const eff = Math.min(req, cap);
+  const simProjected = a.projectedTotal - eff;
+  const simLeftover = state.salary_p - simProjected;
+  const capped = req > cap;
+  const totalContrib = state.pockets.reduce((s, p) => s + p.contrib_p, 0);
+  let pocketLine = "";
+  if (eff > 0 && totalContrib > 0) {
+    if (a.leftover < totalContrib && simLeftover >= totalContrib) {
+      pocketLine = `<p class="whatif-pockets good-text">Your savings goals become fully affordable (${fmt(totalContrib)}/month needed).</p>`;
+    } else {
+      pocketLine = `<p class="whatif-pockets">Your projected available balance increases by ${fmt(eff)}, improving what's available toward your savings goals.</p>`;
+    }
+  }
+  out.classList.remove("hidden");
+  out.innerHTML = `
+    ${capped ? `<p class="whatif-cap">Maximum remaining ${cat} spend that can be reduced is <strong>${fmt(cap)}</strong> — simulation capped there.</p>` : ""}
+    <div class="whatif-compare">
+      <div class="whatif-col">
+        <div class="k">Current projection</div>
+        <div>Projected spending: <strong>${fmt(a.projectedTotal)}</strong></div>
+        <div>Expected balance: <strong>${fmt(a.leftover)}</strong></div>
+      </div>
+      <div class="whatif-col sim">
+        <div class="k">With this change</div>
+        <div>Projected spending: <strong>${fmt(simProjected)}</strong></div>
+        <div>Expected balance: <strong>${fmt(simLeftover)}</strong></div>
+      </div>
+    </div>
+    <p class="whatif-impact">${eff > 0 ? `+${fmt(eff)} more left at month end` : "No reducible future spend in this scenario."}</p>
+    ${pocketLine}`;
 }
 
 // cumulative daily spend, this month vs last, as an inline SVG line chart
@@ -424,6 +549,8 @@ function renderForecast(a) {
       fmt(Math.abs(a.leftover)), a.leftover >= 0 ? "on track" : "over salary", a.leftover >= 0 ? "good" : "bad");
 
   renderBudgetBar(a);
+  renderExplain(a);
+  populateWhatIf(a);
 
   $("#insightsList").innerHTML = buildInsights(a).map(i => `<li class="${i.cls}">${i.text}</li>`).join("")
     || `<li>Add expenses (or load a sample case) to get insights.</li>`;
@@ -543,6 +670,14 @@ function setupEvents() {
       }
     }
   });
+
+  $("#whatIfRun").addEventListener("click", runWhatIf);
+  $("#whatIfReset").addEventListener("click", () => {
+    $("#whatIfAmount").value = "";
+    $("#whatIfResult").classList.add("hidden");
+    $("#whatIfResult").innerHTML = "";
+  });
+  $("#whatIfAmount").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); runWhatIf(); } });
 
   $("#exportJson").addEventListener("click", () => {
     download("punji-ledger.json", JSON.stringify({ state, nextId }, null, 2), "application/json");

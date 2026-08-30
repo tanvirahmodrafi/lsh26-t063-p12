@@ -317,6 +317,59 @@ input[type="date"] { color-scheme: dark; }
 /* ============ settings ============ */
 .settings-col { max-width: 720px; }
 
+/* ============ financial health status ============ */
+.health {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; margin: -6px 0 20px;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r-card);
+  animation: rise 260ms ease backwards;
+}
+.health-pill {
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-strong);
+  color: var(--ink-2);
+}
+.health[data-tone="good"] .health-pill { color: var(--good); border-color: rgba(12, 163, 12, 0.35); background: var(--good-soft); }
+.health[data-tone="warn"] .health-pill { color: var(--warning); border-color: rgba(250, 178, 25, 0.35); background: var(--warning-soft); }
+.health[data-tone="bad"] .health-pill { color: #e66767; border-color: rgba(208, 59, 59, 0.4); background: var(--critical-soft); }
+.health-text { font-size: 13.5px; color: var(--ink-2); }
+
+/* ============ what-if simulator ============ */
+.whatif-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+.whatif-form label { margin-bottom: 0; }
+.whatif-actions { display: flex; gap: 8px; }
+.whatif-cap { font-size: 12.5px; color: var(--warning); margin: 12px 0 0; }
+.whatif-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.whatif-col {
+  background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; font-size: 13px; color: var(--ink-2);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.whatif-col strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.whatif-col .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+.whatif-col.sim { border-color: rgba(79, 142, 247, 0.35); background: var(--accent-soft); }
+.whatif-impact { margin: 12px 0 0; font-size: 14px; font-weight: 600; color: var(--good); font-variant-numeric: tabular-nums; }
+.whatif-pockets { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.good-text { color: var(--good); }
+#whatIfResult { animation: rise 200ms ease; }
+
+/* ============ forecast explainability ============ */
+.explain { border-bottom: 1px solid var(--grid); }
+.explain:last-child { border-bottom: none; }
+.explain summary {
+  cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px;
+  padding: 11px 4px; font-size: 13.5px; color: var(--ink); font-weight: 550;
+  transition: background var(--t);
+}
+.explain summary::-webkit-details-marker { display: none; }
+.explain summary::before { content: "▸"; color: var(--muted); font-size: 11px; transition: transform var(--t); }
+.explain[open] summary::before { transform: rotate(90deg); }
+.explain summary:hover { background: rgba(255, 255, 255, 0.02); }
+.explain-meta { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 450; font-variant-numeric: tabular-nums; text-align: right; }
+.explain-method { margin: 0 0 6px 22px; font-size: 12.5px; color: var(--ink-2); }
+.explain-facts { margin: 0 0 12px 22px; padding: 0; list-style: none; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.explain-facts strong { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
 /* ============ budget allocation bar ============ */
 .budget-track { display: flex; gap: 2px; height: 22px; border-radius: 7px; overflow: hidden; background: var(--grid); }
 .budget-seg { height: 100%; min-width: 3px; transform-origin: left; animation: growX 520ms cubic-bezier(0.22, 0.9, 0.35, 1) backwards; }
@@ -356,4 +409,7 @@ input[type="date"] { color-scheme: dark; }
   .stat .value { font-size: 22px; }
   .bar-group { grid-template-columns: 96px 1fr; }
   #pocketCards { grid-template-columns: 1fr; }
+  .whatif-form { grid-template-columns: 1fr; }
+  .whatif-compare { grid-template-columns: 1fr; }
+  .explain-meta { flex-basis: 100%; margin-left: 22px; text-align: left; }
 }

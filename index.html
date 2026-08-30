@@ -56,6 +56,11 @@
 
     <div class="stat-row" id="statRow"></div>
 
+    <div id="healthStatus" class="health hidden">
+      <span id="healthStatusLabel" class="health-pill"></span>
+      <span id="healthStatusText" class="health-text"></span>
+    </div>
+
     <div class="dash-grid">
       <div class="dash-left">
         <div class="card">
@@ -198,6 +203,23 @@
       <div id="budgetBar"></div>
     </div>
 
+    <div class="card" id="whatIfCard">
+      <div class="card-head"><div><h2>What if?</h2><p class="card-sub">Simulate spending less in one category — nothing is saved</p></div></div>
+      <div class="whatif-form">
+        <label>Category
+          <select id="whatIfCategory"></select>
+        </label>
+        <label>Spend less by (BDT)
+          <input type="number" id="whatIfAmount" min="0" step="0.01" placeholder="1500">
+        </label>
+        <div class="whatif-actions">
+          <button type="button" id="whatIfRun" class="btn primary">Simulate</button>
+          <button type="button" id="whatIfReset" class="btn secondary">Reset</button>
+        </div>
+      </div>
+      <div id="whatIfResult" class="hidden"></div>
+    </div>
+
     <div class="card">
       <div class="card-head"><div><h2>Insights</h2><p class="card-sub">Patterns detected from your actual ledger</p></div></div>
       <ul id="insightsList" class="insights"></ul>
@@ -215,6 +237,11 @@
         <span class="method-title">Methodology</span>
         <p class="muted" id="forecastMethod"></p>
       </div>
+    </div>
+
+    <div class="card" id="forecastExplain">
+      <div class="card-head"><div><h2>Why this forecast?</h2><p class="card-sub">Exactly how each category's projection was produced</p></div></div>
+      <div id="forecastExplainList"></div>
     </div>
   </section>
 

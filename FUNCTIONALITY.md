@@ -18,6 +18,7 @@ Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur ov
 - Every pane has a page header: uppercase eyebrow, h1, subtitle; Dashboard also has a "+ Add expense" button that clicks the Add tab.
 
 ### Overview (`#tab-dashboard`)
+- **Financial health status** `#healthStatus` (`#healthStatusLabel` pill + `#healthStatusText`, `data-tone` good/warn/bad/neutral) — deterministic: salary≤0 → "Salary not set"; leftover<0 → "Projected deficit"; leftover/salary ≥0.20 → "On track"; ≥0.08 → "Watch spending"; else "At risk". Supporting sentence uses real amounts; appends pocket fundability when goals exist. Sits directly under `#statRow`.
 - `#statRow` — 4 JS-generated metric cards (`.stat` > `.label/.value/.sub`, `.good/.bad` on value): spent (+% of salary; first card accent-highlighted), money left, last month total, pace vs last month (▲/▼ vs pro-rated).
 - **Spending trend** `#trendChart` — inline SVG: cumulative daily lines, this month (blue, endpoint dot + total) vs last month (gray, full), dashed salary line. Draw-on animation (`.trend-line` stroke-dash, `.trend-end` fade). `#trendLabel` exists hidden (legacy hook).
 - **Daily spending** `#dailyChart` — SVG bar per day (`.dbar`, grow-up animation), today's bar accent-colored, peak labeled, tooltips via `<title>`.
@@ -32,6 +33,8 @@ Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur ov
 ### Forecast (`#tab-forecast`)
 - `#forecastStats` — 4 metric cards: spent so far (day X of Y), expected rest, projected total, expected left/SHORT (green/red).
 - **Salary allocation** `#budgetBar` in `#budgetCard` — stacked bar: spent | expected rest | leftover (green) or over-salary (red), staggered grow animation, legend with amounts. Card hides when salary ≤ 0.
+- **What-if simulator** `#whatIfCard` (`#whatIfCategory` select showing reducible amount per category, `#whatIfAmount`, `#whatIfRun`, `#whatIfReset`, `#whatIfResult`) — non-persistent: effectiveReduction = min(requested, projected − spentSoFar) for the chosen category; simulated projected total and leftover shown side-by-side vs current, with a cap notice when the request exceeds reducible spend and a pocket-affordability line (turns green when the simulated leftover covers all contributions). Touches no state, storage, or cloud.
+- **Why this forecast?** `#forecastExplain` / `#forecastExplainList` — one `<details>` per category (sorted by projection): method label + plain-language rule (variable / lumpy / repeat-of-last-month / new via `explainMethod()`, a read-only mirror of the engine's classification), tx count, spent, last month, run rate where applicable, final projection. Complements, never replaces, `#forecastMethod`.
 - **Insights** `#insightsList` — 3–6 generated cards (`.insights li`, `.warn`/`.bad`; status dot + left border blue/amber/red). Always name specific categories/shops/amounts.
 - **Category forecast** `#forecastTable` — spent/last/expected-more/projected per category; projected column visually strongest. `#forecastMethod` inside a labeled "Methodology" panel.
 
