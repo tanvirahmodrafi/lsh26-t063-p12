@@ -1,43 +1,46 @@
 # Punji — Full Functionality Reference
 
-Context document for UI redesign work. Everything the app does today, its data model, APIs, and computation rules. The redesign must preserve every behavior listed here — element IDs and CSS classes referenced by `app.js` are load-bearing.
+Context document for anyone working on this app. Everything it does, its data model, APIs, and computation rules. Element IDs and CSS classes referenced by `app.js` are load-bearing — keep them intact.
 
 ## Product summary
 
-Punji is a personal ledger manager (Lofi-stack Hackathon 2026, problem P12, team LSH26-T063) for BDT budgets: track salary and expenses (including by receipt photo), see a monthly dashboard, get a forecast with concrete insights, and plan savings pockets with DPS interest comparison.
+Punji is a personal ledger manager (Lofi-stack Hackathon 2026, problem P12, team LSH26-T063) for BDT budgets: track salary and expenses (including by receipt photo), see a monthly dashboard, get a forecast with concrete insights, and plan savings goals with DPS interest comparison.
 
 - Live: https://lsh26-t063-p12.vercel.app
-- Stack: vanilla HTML/CSS/JS, no framework, no build step. Two Vercel serverless functions. Neon Postgres persistence. Dark-committed theme.
+- Repo: https://github.com/tanvirahmodrafi/lsh26-t063-p12
+- Stack: vanilla HTML/CSS/JS, no framework, no build step, zero npm dependencies. Two Vercel serverless functions. Neon Postgres persistence. Dark-committed premium fintech theme with a brand background image.
 
-## Page structure (index.html)
+## Layout (index.html)
 
-- **Topbar**: 💰 Punji title · `#syncStatus` cloud indicator ("☁ saved / synced / offline") · `#caseSelect` dropdown (loads 1 of 25 sample cases from `data/P12_personal_ledger_public.json`) · `#resetBtn` (confirm → clears localStorage + rotates sync id → reload).
-- **Tab nav** (`.tab` buttons with `data-tab`, panes `#tab-<name>.tabpane`, `.active` class toggles): dashboard, add, forecast, pockets, settings.
+Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur over `assets/bg.jpg`) + main content column (max 1240px). Under 800px the sidebar becomes a top bar with horizontally scrolling tabs.
 
-### Tab: Dashboard (`#tab-dashboard`)
-- `#statRow` stat tiles: Spent this month (+% of salary) · Money left so far (green/red) · Last month total · Pace vs last month (▲/▼ vs pro-rated last month, red when ahead).
-- Category chart `#catChart`: horizontal bar pairs per category — this month (blue `--series-1`) over last month (neutral `--series-0`), value labels at bar ends, category name with emoji icon (`catIcon()`), legend above (`#catMonthLabel` shows "April 2026 vs March 2026").
-- `#topExpenses` table: 5 largest expenses this month (date, category+icon, shop, amount).
-- Trend chart `#trendChart`: inline SVG, cumulative daily spend line for this month (blue, ends in a dot + current total label) vs last month (gray, full month), dashed salary reference line with label. `#trendLabel` subtitle. Day-1/day-N axis captions below.
-- `#expTable`: all expenses sorted newest first, per-row ✎ edit (`data-edit`) and ✕ delete (`data-del`) buttons. `#expCount` shows count.
+- **Sidebar**: brand (`assets/logo.png` mark + "Punji / Personal ledger"), nav (`.tab` buttons with `data-tab` → panes `#tab-<name>.tabpane`, `.active` toggles both), footer: `#syncStatus` (dot + saved/synced/offline, `data-state` colors the dot), "Demo case" `#caseSelect` (25 sample cases from `data/P12_personal_ledger_public.json`, options appended by JS), `#resetBtn` (confirm → clears localStorage + rotates sync id → reload).
+- Every pane has a page header: uppercase eyebrow, h1, subtitle; Dashboard also has a "+ Add expense" button that clicks the Add tab.
 
-### Tab: Add Expense (`#tab-add`)
-- Receipt card: `#receiptFile` file input (image) → client-side downscale to ≤1600px JPEG → POST to `/api/ocr` → `#ocrStatus` progress/errors; on success `#ocrResult` panel lists what was read (shop/date/amount/category guess in `#ocrReadList`) and the values pre-fill the form for correction. `#receiptPreview` shows the image (`#receiptPreviewWrap` unhidden).
-- Form `#expForm`: `#expDate` (date), `#expCategory` (text + `#catList` datalist of the 10 categories), `#expShop`, `#expAmount` (number, min 0.01) → `#expSubmitBtn` ("Save expense", switches to "Update expense" in edit mode). `#saveMsg` shows "✓ Saved." for 2.5s. Saving resets the form and hides OCR panels.
+### Overview (`#tab-dashboard`)
+- `#statRow` — 4 JS-generated metric cards (`.stat` > `.label/.value/.sub`, `.good/.bad` on value): spent (+% of salary; first card accent-highlighted), money left, last month total, pace vs last month (▲/▼ vs pro-rated).
+- **Spending trend** `#trendChart` — inline SVG: cumulative daily lines, this month (blue, endpoint dot + total) vs last month (gray, full), dashed salary line. Draw-on animation (`.trend-line` stroke-dash, `.trend-end` fade). `#trendLabel` exists hidden (legacy hook).
+- **Daily spending** `#dailyChart` — SVG bar per day (`.dbar`, grow-up animation), today's bar accent-colored, peak labeled, tooltips via `<title>`.
+- **Spending by category** `#catChart` — per category: emoji + name, blue this-month bar over thin gray last-month bar (`.bar-group/.bar-pair/.bar.this/.bar.last/.bar-label`), grow-from-left animation. `#catMonthLabel` = "April 2026 vs March 2026".
+- **Largest expenses** `#topExpenses` — top 5 this month (compact table).
+- **Transactions** `#expTable` + `#expCount` — all expenses newest-first with ✎ `data-edit` and ✕ `data-del` icon buttons; hover rows; designed empty state row.
 
-### Tab: Forecast & Insights (`#tab-forecast`)
-- `#forecastStats` tiles: Spent so far (day X of Y) · Expected rest of month · Projected month total · Expected left/SHORT at month end (green/red).
-- `#insightsList`: 3–6 generated insights (`.insights li`, classes "", "warn", "bad" color the left border blue/yellow/red). Insights always name specific categories/shops/amounts.
-- `#forecastTable`: per category — spent so far, last month, expected more, projected total. `#forecastMethod` explains the algorithm.
+### Add expense (`#tab-add`)
+- Form card `#expForm`: `#expDate` + `#expCategory` (datalist `#catList`) on one row, `#expShop`, hero amount input `#expAmount` (৳ prefix), `#expSubmitBtn` ("Save expense" / "Update expense" in edit mode), `#saveMsg`.
+- Receipt scanner card: dropzone label wrapping `#receiptFile` (input covers the zone invisibly) → client-side downscale to ≤1600px JPEG → POST `/api/ocr` → `#ocrStatus` (spinner while non-empty) → `#ocrResult` "Detected from receipt" panel (`#ocrReadList`) + values prefill the form for correction. `#receiptPreview` in `#receiptPreviewWrap`. On smaller screens the scanner card orders first.
 
-### Tab: Savings Pockets (`#tab-pockets`)
-- `#pocketForm`: name `#pkName`, item `#pkItem`, target `#pkTarget`, monthly contribution `#pkContrib`.
-- DPS rate card: `#dpsRate` number input (annual %), rule text.
-- `#pocketCards`: one `.pocket` card per pocket — 🎯 name, item, delete (`data-delpocket`); grid of: Target · Monthly contribution · Expected completion (month + count, forecast-adjusted) · DPS value after that horizon · DPS interest earned · DPS reaches target in N months; notes: green "DPS gets you there N months earlier", and an affordability note (`ok`/`warn`/`bad`) driven by the forecast leftover.
+### Forecast (`#tab-forecast`)
+- `#forecastStats` — 4 metric cards: spent so far (day X of Y), expected rest, projected total, expected left/SHORT (green/red).
+- **Salary allocation** `#budgetBar` in `#budgetCard` — stacked bar: spent | expected rest | leftover (green) or over-salary (red), staggered grow animation, legend with amounts. Card hides when salary ≤ 0.
+- **Insights** `#insightsList` — 3–6 generated cards (`.insights li`, `.warn`/`.bad`; status dot + left border blue/amber/red). Always name specific categories/shops/amounts.
+- **Category forecast** `#forecastTable` — spent/last/expected-more/projected per category; projected column visually strongest. `#forecastMethod` inside a labeled "Methodology" panel.
 
-### Tab: Settings (`#tab-settings`)
-- `#salaryInput` (BDT), `#todayInput` (date — drives "this month" and forecast day split).
-- Export card: `#exportJson` (full ledger JSON), `#exportCsv` (expenses CSV) — client-side blob downloads.
+### Savings (`#tab-pockets`)
+- `#pocketForm` (`#pkName #pkItem #pkTarget #pkContrib`) + DPS card (`#dpsRate`).
+- `#pocketCards` — goal cards (`.pocket`, delete via `data-delpocket`): target, monthly contribution, expected completion (month + count), DPS value after that horizon, DPS interest earned, DPS-reaches-target month; green "DPS gets you there N months earlier" note when true; affordability note (`.note ok/warn/bad`).
+
+### Settings (`#tab-settings`)
+- `#salaryInput`, `#todayInput` (ledger date drives "this month" + forecast split), export buttons `#exportJson` / `#exportCsv` (client-side blob downloads).
 
 ## Data model (all money = integer paisa)
 
@@ -48,36 +51,39 @@ state = {
   pockets:  [{ id, name, item, target_p, contrib_p }],
 }
 ```
-- Categories: Clothing 👕 Education 📚 Entertainment 🎬 Food 🍜 Groceries 🛒 Health 💊 Mobile 📱 Rent 🏠 Transport 🚌 Utilities 💡 (free text also allowed; unknown → 🧾).
-- `fmt()` renders ৳ with en-IN digit grouping; negative = −৳.
+- Categories: Clothing 👕 Education 📚 Entertainment 🎬 Food 🍜 Groceries 🛒 Health 💊 Mobile 📱 Rent 🏠 Transport 🚌 Utilities 💡 (free text allowed; unknown → 🧾).
+- `fmt()` renders ৳ with en-IN grouping; negative = −৳. `tabular-nums` everywhere money appears.
 
 ## Persistence & sync
 
-- localStorage key `p12-ledger-v1` (instant paint + offline fallback), anonymous per-browser id `p12-sync-id`.
-- Cloud: debounced (800ms) PUT `{id, state}` to `/api/ledger`; on boot GET prefers the cloud copy. Status surfaces in `#syncStatus`.
-- `API_BASE`: empty on *.vercel.app, otherwise `https://lsh26-t063-p12.vercel.app` (local dev fallback; functions send CORS `*`).
+- localStorage `p12-ledger-v1` (instant paint + offline fallback); anonymous per-browser id `p12-sync-id`.
+- Cloud: debounced (800ms) PUT `{id, state}` to `/api/ledger`; boot GET prefers the cloud copy. Status → `#syncStatus`.
+- `API_BASE`: empty on *.vercel.app, else `https://lsh26-t063-p12.vercel.app` (local static server fallback; both functions send CORS `*` and handle OPTIONS).
 
 ## Serverless APIs
 
 - `POST /api/ocr` `{image: dataURL}` → `{shop, date, amount_bdt, category, model, raw}` — OpenRouter vision (Gemini 2.5 Flash Lite, Flash fallback). Env: `OPENROUTER_API_KEY`.
-- `GET/PUT /api/ledger` — JSONB row per ledger id in Neon (`ledgers` table), via Neon HTTP SQL API. Env: `DATABASE_URL`.
+- `GET/PUT /api/ledger` — JSONB row per ledger id in Neon `ledgers` table via Neon HTTP SQL API (no driver). Env: `DATABASE_URL`.
 
 ## Computation rules (do not change)
 
-- **Months**: "this month" = month of `state.today`; "last month" = previous calendar month. Expenses dated after `today` are ignored in this-month totals.
-- **Forecast per category**: variable (≥3 transactions this month) → `max(spentSoFar, round(avg(lastMonthTotal, runRate)))` where runRate = spent ÷ dayOfMonth × daysInMonth; lumpy (<3 tx) → `max(spentSoFar, lastMonthTotal)`; only-last-month → repeat `lastMonthTotal`; new category → runRate. Leftover = salary − (spentSoFar + Σ expected-more).
-- **Insights** (pick up to 6): pace-increase category (≥2 tx only), pace-decrease category (spent > 0 only), largest single expense (+% of salary), largest category share, pocket affordability vs leftover (funded / short by X / in the red), month-end shortfall.
-- **Pockets**: completion months = `ceil(target ÷ contribution)`, date = thisMonth + months; DPS is simulated over that same plan horizon. If forecast leftover < Σ contributions, the affordability note (warn/bad) states each pocket's affordable share and the forecast-adjusted landing (">10 years" wording when the adjusted pace exceeds 120 months); leftover ≤ 0 → "bad" note.
-- **DPS simulation** (exact spec rule): monthly `balance += deposit; interest = round_half_up(balance × annualRate ÷ 12 ÷ 100) to the paisa; balance += interest`. Integer arithmetic: rateBp = rate×100, interest = ⌊(2·bal·rateBp + 120000) ÷ 240000⌋. Report value after the horizon, total interest, and first month balance ≥ target.
+- **Months**: "this month" = month of `state.today`; expenses dated after `today` are excluded from this-month totals.
+- **Forecast per category**: variable (≥3 tx this month) → `max(spentSoFar, round(avg(lastMonthTotal, runRate)))`, runRate = spent ÷ dayOfMonth × daysInMonth; lumpy (<3 tx) → `max(spentSoFar, lastMonthTotal)`; only-last-month → repeat; new → runRate. Leftover = salary − (spent + Σ expected-more).
+- **Insights**: pace-increase (≥2 tx only), pace-decrease (spent > 0 only), largest single expense (+% of salary), largest category share, pocket affordability vs leftover, month-end shortfall. Up to 6.
+- **Pockets**: completion months = `ceil(target ÷ contribution)`, date = thisMonth + months; DPS simulated over that same horizon with the planned contribution. If forecast leftover < Σ contributions, the note states each pocket's proportional affordable share and the forecast-adjusted landing (">10 years" wording past 120 months); leftover ≤ 0 → bad note.
+- **DPS** (exact spec rule): monthly `balance += deposit; interest = round_half_up(balance × rate ÷ 12 ÷ 100)` to the paisa, joins balance. Integer arithmetic: rateBp = rate×100; interest = ⌊(2·bal·rateBp + 120000) ÷ 240000⌋.
 
-## Current design tokens (style.css)
+## Design system (style.css)
 
-Dark-only: page `#0d0d0d`, surface `#1a1a19`, ink `#fff`/`#c3c2b7`/muted `#898781`, grid `#2c2c2a`, border `rgba(255,255,255,.1)`, series-1 blue `#3987e5`, series-0 neutral `#6b6a64`, good `#0ca30c`, warning `#fab219`, critical `#d03b3b`. System font stack. Status/series colors follow a validated accessible palette — keep series identity colors and good/warn/critical semantics if restyling.
+- Tokens: page `#0b0d10`, card `#15191f`, card-2 `#191e25`, ink `#f5f7fa`/`#a7adb7`/muted `#6f7782`, accent `#4f8ef7`, series-1 `#3987e5`, series-0 `#6b6a64`, good `#0ca30c`, warning `#fab219`, critical `#d03b3b`. Cards 14px radius, controls 10px, buttons 40px (`.btn primary/secondary/subtle-danger`).
+- Background: `assets/bg.jpg` fixed cover behind a left-to-right dark gradient overlay (`body::before/::after`, z-index −1).
+- Animations (120–900ms, all CSS, `prefers-reduced-motion` respected): tab panes rise, stat cards stagger, category bars `growX`, daily bars `growY`, budget segments cascade, trend lines `drawLine` + endpoint `fadeIn`, OCR spinner, OCR result rise.
+- Empty states: `.empty-msg` / `.empty-cell` centered muted messages for trend, category chart, tables, pockets.
 
-## Hard constraints for any redesign
+## Hard constraints for any change
 
-1. Keep every element id and `data-*` hook above — `app.js` queries them.
-2. No external resources (CDN fonts/icons/libs) — licensing rules ban copyleft and we declare zero dependencies.
-3. Charts: keep legend for 2-series charts, don't color text with series colors, one axis only.
-4. Must stay responsive (judges may open on any screen; `.grid2` collapses at 800px).
-5. No build step — plain files served statically.
+1. Keep every element id, `data-*` hook, and JS-generated class named above.
+2. No external resources (CDN/fonts/libs) — licensing rules ban copyleft; LICENSES.md declares zero dependencies.
+3. No build step — plain static files + `api/` functions.
+4. Charts: legend for 2-series, one axis, text never in series color.
+5. Responsive: no horizontal page overflow at 390px.
