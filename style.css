@@ -208,13 +208,19 @@ button.ghost:not(.btn) { background: none; border: 1px solid var(--border-strong
 .table td:last-child { white-space: nowrap; }
 #forecastTable td.num:not(:last-child) { color: var(--ink-2); font-weight: 450; }
 .table-scroll { overflow-x: auto; max-height: 460px; overflow-y: auto; }
-.actions-col { width: 64px; }
+.actions-col { width: 96px; }
 .del-btn, .edit-btn {
   background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px;
-  width: 26px; height: 26px; border-radius: 7px; transition: background var(--t), color var(--t);
+  width: 44px; height: 44px; border-radius: 9px; transition: background var(--t), color var(--t);
 }
 .del-btn:hover { color: var(--critical); background: var(--critical-soft); }
 .edit-btn:hover { color: var(--accent); background: var(--accent-soft); }
+.excluded-row { opacity: 0.72; }
+.window-badge {
+  display: block; width: max-content; margin-top: 4px; padding: 2px 6px;
+  border: 1px solid rgba(250, 178, 25, 0.35); border-radius: 999px;
+  color: var(--warning); background: var(--warning-soft); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
+}
 
 /* ============ forms ============ */
 form label, .card > label { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; font-weight: 500; }
@@ -237,6 +243,8 @@ input[type="date"] { color-scheme: dark; }
 .save-msg.warn { color: var(--warning); }
 .save-msg.warn strong { color: var(--ink); }
 .small-note { font-size: 12px; margin-top: 2px; }
+.expense-actions { display: flex; gap: 8px; align-items: center; }
+.expense-actions .wide { flex: 1; }
 
 /* ============ add-expense layout ============ */
 .add-grid { display: grid; grid-template-columns: minmax(0, 55fr) minmax(0, 45fr); gap: 18px; align-items: start; }
@@ -318,6 +326,15 @@ input[type="date"] { color-scheme: dark; }
 
 /* ============ settings ============ */
 .settings-col { max-width: 720px; }
+
+.undo-toast {
+  position: fixed; z-index: 50; right: 22px; bottom: 22px;
+  display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px; border: 1px solid var(--border-strong); border-radius: 12px;
+  background: var(--card); color: var(--ink-2); box-shadow: 0 14px 44px rgba(0, 0, 0, 0.4);
+  font-size: 13px; animation: rise 180ms ease;
+}
+.undo-toast .btn { min-width: 72px; }
 
 /* ============ financial health status ============ */
 .health {
@@ -444,4 +461,5 @@ input[type="date"] { color-scheme: dark; }
   .whatif-form { grid-template-columns: 1fr; }
   .whatif-compare { grid-template-columns: 1fr; }
   .explain-meta { flex-basis: 100%; margin-left: 22px; text-align: left; }
+  .undo-toast { right: 16px; bottom: 16px; }
 }

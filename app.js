@@ -5,6 +5,12 @@ const CATEGORIES = ["Clothing","Education","Entertainment","Food","Groceries","H
 const CAT_EMOJI = { Clothing:"👕", Education:"📚", Entertainment:"🎬", Food:"🍜", Groceries:"🛒", Health:"💊", Mobile:"📱", Rent:"🏠", Transport:"🚌", Utilities:"💡" };
 const catIcon = (c) => CAT_EMOJI[c] || "🧾";
 const LS_KEY = "p12-ledger-v1";
+const MIN_FORECAST_DAY = 7;
+const MIN_FORECAST_TX = 3;
+const realToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 // When served from a plain file server (local dev), the serverless functions
 // don't exist locally — fall back to the production API.
 const API_BASE = location.hostname.endsWith("vercel.app") ? "" : "https://lsh26-t063-p12.vercel.app";
@@ -57,7 +63,7 @@ function monthName(ymStr) {
 // ---------- state ----------
 let state = {
   caseId: null,
-  today: new Date().toISOString().slice(0, 10),
+  today: realToday(),
   salary_p: 0,
   dpsRate: 9.0,
   expenses: [],   // {id, date, category, shop, amount_p}
@@ -73,6 +79,37 @@ const syncId = (() => {
 })();
 let syncTimer = null;
 let editingId = null;
+let undoTimer = null;
+let lastDeleted = null;
+
+function freshState() {
+  return { caseId: null, today: realToday(), salary_p: 0, dpsRate: 9.0, expenses: [], pockets: [] };
+}
+
+function validDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return false;
+  const d = new Date(value + "T00:00:00Z");
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
+function normalizeLabel(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function canonicalCategory(value) {
+  const clean = normalizeLabel(value);
+  return CATEGORIES.find(c => c.toLowerCase() === clean.toLowerCase()) || clean;
+}
+
+function canonicalShop(value) {
+  const clean = normalizeLabel(value);
+  const known = state.expenses.find(e => normalizeLabel(e.shop).toLowerCase() === clean.toLowerCase());
+  return known ? normalizeLabel(known.shop) : clean;
+}
+
+function esc(value) {
+  return String(value).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]);
+}
 function download(name, content, type) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([content], { type }));
@@ -107,8 +144,49 @@ function save() {
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) { const d = JSON.parse(raw); state = d.state; nextId = d.nextId || 1; }
+    if (raw) {
+      const d = JSON.parse(raw);
+      state = d.state;
+      nextId = d.nextId || 1;
+      if (!validDate(state.today) || state.today > realToday()) state.today = realToday();
+    }
   } catch (e) { /* fresh start */ }
+}
+
+function clearEdit({ resetForm = true, message = "" } = {}) {
+  editingId = null;
+  $("#expensePageTitle").textContent = "Add an expense";
+  $("#expenseFormTitle").textContent = "Expense details";
+  $("#expenseFormSub").textContent = "Everything is editable before it's saved";
+  $("#expSubmitBtn").textContent = "Save expense";
+  $("#expCancelBtn").classList.add("hidden");
+  if (resetForm) {
+    $("#expForm").reset();
+    $("#expDate").value = state.today;
+  }
+  if (message) $("#saveMsg").textContent = message;
+}
+
+function beginEdit(e) {
+  editingId = e.id;
+  $("#expDate").value = e.date;
+  $("#expCategory").value = e.category;
+  $("#expShop").value = e.shop;
+  $("#expAmount").value = (e.amount_p / 100).toFixed(2);
+  $("#expensePageTitle").textContent = "Edit expense";
+  $("#expenseFormTitle").textContent = `Editing ${e.id}`;
+  $("#expenseFormSub").textContent = `${e.date} · ${e.shop} · ${fmt(e.amount_p)}`;
+  $("#expSubmitBtn").textContent = "Update expense";
+  $("#expCancelBtn").classList.remove("hidden");
+  $("#saveMsg").textContent = "";
+}
+
+function unloadCase() {
+  state = freshState();
+  nextId = 1;
+  clearEdit();
+  save();
+  renderAll();
 }
 
 function loadCase(c) {
@@ -122,8 +200,8 @@ function loadCase(c) {
   };
   nextId = 1000;
   save();
+  clearEdit();
   renderAll();
-  editingId = null;
   $("#expDate").value = state.today; // new ledger month — realign the entry form
 }
 
@@ -151,15 +229,18 @@ function analyze() {
   let expectedMore = 0;
   for (const [cat, v] of Object.entries(byCat)) {
     const runRate = dayOf > 0 ? Math.round((v.thisM * dim) / dayOf) : v.thisM;
-    const lumpy = v.thisCount < 3; // few large payments (Rent, Utilities): don't run-rate extrapolate
+    const runRateReady = dayOf >= MIN_FORECAST_DAY && v.thisCount >= MIN_FORECAST_TX;
     let projected;
+    let method;
     if (v.lastM > 0 && v.thisM > 0) {
-      projected = lumpy ? Math.max(v.thisM, v.lastM) : Math.max(v.thisM, Math.round((v.lastM + runRate) / 2));
+      method = runRateReady ? "variable" : "lumpy";
+      projected = runRateReady ? Math.max(v.thisM, Math.round((v.lastM + runRate) / 2)) : Math.max(v.thisM, v.lastM);
     }
-    else if (v.lastM > 0) projected = v.lastM;           // not spent yet this month, expect a repeat
-    else projected = runRate;                             // new category, extrapolate
+    else if (v.lastM > 0) { method = "repeat"; projected = v.lastM; }
+    else if (runRateReady) { method = "new"; projected = runRate; }
+    else { method = "early"; projected = v.thisM; }
     const more = Math.max(0, projected - v.thisM);
-    forecast[cat] = { ...v, projected, more };
+    forecast[cat] = { ...v, projected, more, method, runRateReady };
     expectedMore += more;
   }
 
@@ -311,11 +392,19 @@ function renderDashboard(a) {
 
   const all = [...state.expenses].sort((x, y) => y.date.localeCompare(x.date));
   $("#expCount").textContent = `(${all.length})`;
-  $("#expTable tbody").innerHTML = all.map(e =>
-    `<tr><td>${e.date}</td><td>${catIcon(e.category)} ${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td>
-     <td><button class="edit-btn" data-edit="${e.id}" title="edit">✎</button>
-         <button class="del-btn" data-del="${e.id}" title="delete">✕</button></td></tr>`
-  ).join("") || `<tr><td colspan="5" class="empty-cell">No expenses yet — add your first expense or scan a receipt.</td></tr>`;
+  $("#expTable tbody").innerHTML = all.map(e => {
+    let outside = "";
+    if (e.date > state.today) outside = `After ledger date ${state.today} — not counted yet`;
+    else if (ym(e.date) !== a.thisM) outside = `Outside ${monthName(a.thisM)} — not counted this month`;
+    const label = `${e.date}, ${e.shop}, ${fmt(e.amount_p)}`;
+    return `<tr class="${outside ? "excluded-row" : ""}"><td>${e.date}${outside ? `<span class="window-badge" title="${esc(outside)}">Not counted</span>` : ""}</td><td>${catIcon(e.category)} ${esc(e.category)}</td><td>${esc(e.shop)}</td><td class="num">${fmt(e.amount_p)}</td>
+     <td><button class="edit-btn" data-edit="${esc(e.id)}" title="Edit ${esc(label)}" aria-label="Edit ${esc(label)}">✎</button>
+         <button class="del-btn" data-del="${esc(e.id)}" title="Delete ${esc(label)}" aria-label="Delete ${esc(label)}">✕</button></td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="empty-cell">No expenses yet — add your first expense or scan a receipt.</td></tr>`;
+
+  const shops = [...new Set(state.expenses.map(e => normalizeLabel(e.shop)).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+  $("#shopList").innerHTML = shops.map(shop => `<option value="${esc(shop)}">`).join("");
 }
 
 // deterministic financial health status (Overview) — derived, never stored
@@ -356,9 +445,7 @@ function renderHealth(a) {
 
 // classify a category exactly as analyze() does — read-only mirror for explanations
 function explainMethod(v) {
-  if (v.lastM > 0 && v.thisM > 0) return v.thisCount < 3 ? "lumpy" : "variable";
-  if (v.lastM > 0) return "repeat";
-  return "new";
+  return v.method;
 }
 
 function renderExplain(a) {
@@ -369,8 +456,9 @@ function renderExplain(a) {
     lumpy: "Lumpy spending — the higher of spending so far and last month's total.",
     repeat: "No activity yet this month, so last month's amount is repeated.",
     new: "New category this month, so the projection follows the current run rate.",
+    early: `Early sample — no run-rate extrapolation until day ${MIN_FORECAST_DAY} and ${MIN_FORECAST_TX} transactions; projection stays at spending so far.`,
   };
-  const METHOD_LABEL = { variable: "Variable spending", lumpy: "Lumpy spending", repeat: "Repeat of last month", new: "New category" };
+  const METHOD_LABEL = { variable: "Variable spending", lumpy: "Lumpy spending", repeat: "Repeat of last month", new: "New category", early: "Early sample" };
   const rows = Object.entries(a.forecast).sort((x, y) => y[1].projected - x[1].projected);
   el.innerHTML = rows.map(([cat, v]) => {
     const method = explainMethod(v);
@@ -562,7 +650,7 @@ function renderForecast(a) {
     `<tr><td>${cat}</td><td class="num">${fmt(v.thisM)}</td><td class="num">${fmt(v.lastM)}</td>
      <td class="num">${fmt(v.more)}</td><td class="num">${fmt(v.projected)}</td></tr>`).join("");
   $("#forecastMethod").textContent =
-    `Method: variable categories (3+ transactions) project to max(spent so far, average of last month's total and this month's run-rate — spent ÷ ${a.dayOf} days × ${a.dim} days). One-shot categories like Rent project to max(spent so far, last month). Categories seen only last month are expected to repeat; new categories use the run-rate.`;
+    `Method: run-rate extrapolation starts on day ${MIN_FORECAST_DAY} with ${MIN_FORECAST_TX}+ transactions in a category. Before that, new categories stay at spending so far. Ready variable categories use max(spent so far, average of last month's total and run rate); lumpy categories use max(spent so far, last month); categories seen only last month are expected to repeat.`;
 }
 
 function renderPockets(a) {
@@ -573,7 +661,7 @@ function renderPockets(a) {
     const dpsBeat = plan.dpsMonthsToTarget && plan.dpsMonthsToTarget < plan.adjMonths;
     return `<div class="pocket">
       <div class="pocket-head"><h3>🎯 ${p.name}</h3><span class="item">${p.item}</span>
-        <button class="del-btn" data-delpocket="${p.id}" title="delete pocket">✕</button></div>
+        <button class="del-btn" data-delpocket="${p.id}" title="Delete savings goal ${esc(p.name)}" aria-label="Delete savings goal ${esc(p.name)}">✕</button></div>
       <div class="progress"><div style="width:${savedPct}%"></div></div>
       <div class="pocket-grid">
         <div><div class="k">Target</div><div class="v">${fmt(p.target_p)}</div></div>
@@ -592,9 +680,15 @@ function renderPockets(a) {
 function renderSettings() {
   $("#salaryInput").value = (state.salary_p / 100).toFixed(2);
   $("#todayInput").value = state.today;
+  $("#todayInput").max = realToday();
+  $("#expDate").max = state.today;
   // default the expense form's date to the ledger's "today" so new entries
   // land inside the tracked month (demo cases live in a different month than real time)
   if (!editingId && !$("#expDate").value) $("#expDate").value = state.today;
+  if (window.__cases) {
+    const idx = window.__cases.findIndex(c => c.case_id === state.caseId);
+    $("#caseSelect").value = idx >= 0 ? String(idx) : "";
+  }
 }
 
 function renderAll() {
@@ -667,9 +761,21 @@ function buildPrintReport(a) {
   <div class="pr-foot">Punji · Personal Ledger Manager · Lofi-stack Hackathon 2026 · P12</div>`;
 }
 
+function showUndo(expense, index) {
+  clearTimeout(undoTimer);
+  lastDeleted = { expense, index };
+  $("#undoText").textContent = `Deleted ${expense.shop} · ${fmt(expense.amount_p)}.`;
+  $("#undoToast").classList.remove("hidden");
+  undoTimer = setTimeout(() => {
+    lastDeleted = null;
+    $("#undoToast").classList.add("hidden");
+  }, 7000);
+}
+
 // ---------- events ----------
 function setupEvents() {
   document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    if (t.dataset.tab !== "add" && editingId) clearEdit();
     document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
     document.querySelectorAll(".tabpane").forEach(x => x.classList.remove("active"));
     t.classList.add("active");
@@ -682,18 +788,18 @@ function setupEvents() {
     ev.preventDefault();
     const rec = {
       date: $("#expDate").value,
-      category: $("#expCategory").value.trim(),
-      shop: $("#expShop").value.trim(),
+      category: canonicalCategory($("#expCategory").value),
+      shop: canonicalShop($("#expShop").value),
       amount_p: toPaisa($("#expAmount").value),
     };
+    const wasEditing = Boolean(editingId);
     if (editingId) {
       const e = state.expenses.find(x => x.id === editingId);
       if (e) Object.assign(e, rec);
-      editingId = null;
-      $("#expSubmitBtn").textContent = "Save expense";
     } else {
       state.expenses.push({ id: "U" + (nextId++), ...rec });
     }
+    clearEdit();
     save(); renderAll();
     const thisM = ym(state.today);
     const msgEl = $("#saveMsg");
@@ -705,14 +811,14 @@ function setupEvents() {
       msgEl.innerHTML = `⚠ Saved, but it's dated after your ledger date (<strong>${state.today}</strong>), so it isn't counted yet.`;
     } else {
       msgEl.className = "save-msg";
-      msgEl.textContent = "✓ Saved.";
+      msgEl.textContent = wasEditing ? "✓ Expense updated." : "✓ Expense saved.";
       setTimeout(() => { if (!msgEl.classList.contains("warn")) msgEl.textContent = ""; }, 2500);
     }
-    ev.target.reset();
-    $("#expDate").value = state.today;
     $("#ocrResult").classList.add("hidden");
     $("#receiptPreviewWrap").classList.add("hidden");
   });
+
+  $("#expCancelBtn").addEventListener("click", () => clearEdit({ message: "Edit cancelled. No changes were saved." }));
 
   $("#pocketForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
@@ -727,30 +833,53 @@ function setupEvents() {
   });
 
   $("#dpsRate").addEventListener("change", () => { state.dpsRate = Number($("#dpsRate").value) || 0; save(); renderAll(); });
-  $("#salaryInput").addEventListener("change", () => { state.salary_p = toPaisa($("#salaryInput").value) || 0; save(); renderAll(); });
-  $("#todayInput").addEventListener("change", () => {
-    state.today = $("#todayInput").value; save(); renderAll();
+  $("#settingsSave").addEventListener("click", () => {
+    const chosenDate = $("#todayInput").value;
+    if (!validDate(chosenDate) || chosenDate > realToday()) {
+      $("#settingsMsg").textContent = `Choose a valid ledger date on or before ${realToday()}.`;
+      return;
+    }
+    state.salary_p = toPaisa($("#salaryInput").value) || 0;
+    state.today = chosenDate;
+    save(); renderAll();
     if (!editingId) $("#expDate").value = state.today;
+    $("#settingsMsg").textContent = "✓ Financial settings saved.";
   });
 
   document.body.addEventListener("click", (ev) => {
     const del = ev.target.dataset.del;
     const delP = ev.target.dataset.delpocket;
     const edit = ev.target.dataset.edit;
-    if (del) { state.expenses = state.expenses.filter(e => e.id !== del); save(); renderAll(); }
-    if (delP) { state.pockets = state.pockets.filter(p => p.id !== delP); save(); renderAll(); }
+    if (del) {
+      const index = state.expenses.findIndex(e => e.id === del);
+      if (index >= 0) {
+        const [expense] = state.expenses.splice(index, 1);
+        if (editingId === del) clearEdit();
+        save(); renderAll(); showUndo(expense, index);
+      }
+    }
+    if (delP) {
+      const pocket = state.pockets.find(p => p.id === delP);
+      if (pocket && confirm(`Delete the savings goal “${pocket.name}”?`)) {
+        state.pockets = state.pockets.filter(p => p.id !== delP); save(); renderAll();
+      }
+    }
     if (edit) {
       const e = state.expenses.find(x => x.id === edit);
       if (e) {
-        editingId = edit;
-        $("#expDate").value = e.date;
-        $("#expCategory").value = e.category;
-        $("#expShop").value = e.shop;
-        $("#expAmount").value = (e.amount_p / 100).toFixed(2);
-        $("#expSubmitBtn").textContent = "Update expense";
+        beginEdit(e);
         document.querySelector('[data-tab="add"]').click();
       }
     }
+  });
+
+  $("#undoBtn").addEventListener("click", () => {
+    if (!lastDeleted) return;
+    state.expenses.splice(Math.min(lastDeleted.index, state.expenses.length), 0, lastDeleted.expense);
+    clearTimeout(undoTimer);
+    lastDeleted = null;
+    $("#undoToast").classList.add("hidden");
+    save(); renderAll();
   });
 
   $("#whatIfRun").addEventListener("click", runWhatIf);
@@ -772,7 +901,8 @@ function setupEvents() {
   });
 
   $("#resetBtn").addEventListener("click", () => {
-    if (!confirm("Clear all data?")) return;
+    const typed = prompt("This permanently clears expenses, salary, and savings goals. Type RESET to continue.");
+    if (typed !== "RESET") return;
     localStorage.removeItem(LS_KEY);
     localStorage.removeItem("p12-sync-id"); // fresh cloud ledger too
     location.reload();
@@ -782,6 +912,7 @@ function setupEvents() {
   $("#receiptFile").addEventListener("change", async (ev) => {
     const file = ev.target.files[0];
     if (!file) return;
+    if (editingId) clearEdit({ message: "Receipt scan started; the previous edit was cancelled without saving." });
     // downscale + JPEG-compress so large phone photos stay under upload limits
     const dataUrl = await new Promise((res, rej) => {
       const img = new Image();
@@ -819,6 +950,10 @@ function setupEvents() {
         `Amount: <strong>${d.amount_bdt != null ? "৳" + d.amount_bdt : "— not readable —"}</strong>`,
         `Category guess: <strong>${d.category ?? "—"}</strong>`,
       ].map(x => `<li>${x}</li>`).join("");
+      const copied = [d.shop, d.date, d.amount_bdt != null ? d.amount_bdt : null, d.category].filter(v => v !== null && v !== undefined && v !== "").length;
+      $("#ocrNote").textContent = copied
+        ? `✓ ${copied} readable value${copied === 1 ? " was" : "s were"} copied into the form — review before saving.`
+        : "Nothing readable was copied. Your existing form values were left unchanged.";
       $("#ocrResult").classList.remove("hidden");
       if (d.shop) $("#expShop").value = d.shop;
       if (d.date) $("#expDate").value = d.date;
@@ -836,11 +971,25 @@ function setupEvents() {
       window.__cases = d.cases;
       $("#caseSelect").innerHTML += d.cases.map((c, i) =>
         `<option value="${i}">${c.case_id} — salary ${c.salary_bdt}</option>`).join("");
+      renderSettings();
     })
     .catch(() => { /* sample data optional */ });
   $("#caseSelect").addEventListener("change", (ev) => {
     const i = ev.target.value;
-    if (i !== "" && window.__cases) loadCase(window.__cases[Number(i)]);
+    if (i === "") {
+      if (!state.caseId) return;
+      if (confirm("Unload this demo and start a fresh personal ledger? The demo data will be removed.")) unloadCase();
+      else renderSettings();
+      return;
+    }
+    if (!window.__cases) return;
+    const c = window.__cases[Number(i)];
+    const hasData = state.expenses.length > 0 || state.pockets.length > 0 || state.salary_p > 0;
+    if (hasData && !confirm(`Load ${c.case_id}? This replaces the current ledger with demo data.`)) {
+      renderSettings();
+      return;
+    }
+    loadCase(c);
   });
 }
 
@@ -855,6 +1004,7 @@ async function init() {
       if (d.state && d.state.state) {
         state = d.state.state;
         nextId = d.state.nextId || nextId;
+        if (!validDate(state.today) || state.today > realToday()) state.today = realToday();
         localStorage.setItem(LS_KEY, JSON.stringify({ state, nextId }));
         renderAll();
       }

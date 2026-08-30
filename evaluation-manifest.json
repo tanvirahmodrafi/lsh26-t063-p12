@@ -1,19 +1,83 @@
 {
-  "_NOTE": "PLACEHOLDER — replace this entire file with the organizer-provided template from Discord, then fill it in. Keeping this here so we don't forget the file must exist in the final commit before 10:00 PM.",
-  "team_code": "LSH26-T063",
-  "problem": "P12",
-  "repository": "lsh26-t063-p12",
-  "members": [
-    {
-      "name": "Tanvir",
-      "email": "thesayeedjoy@gmail.com",
-      "contribution": "<what this member did>"
+  "team_id": "LSH26-T063",
+  "problem_id": "P12",
+  "repository_name": "lsh26-t063-p12",
+  "live_url": "https://lsh26-t063-p12.vercel.app",
+  "demo_video_url_optional": "",
+  "event_start_code": "LSH26-8490-C900",
+  "repository_created_before_release": false,
+  "pre_event_materials": [],
+  "sample_data": {
+    "loads_published_fixture": true,
+    "method": "Use the sidebar Demo case selector to load any of the 25 bundled cases from data/P12_personal_ledger_public.json; equivalent hidden-case values can be entered through Settings, Add expense and Savings.",
+    "reset_instructions": "Choose Demo case > — none — to unload a demo into a fresh ledger, or click Reset data and type RESET to clear all browser data."
+  },
+  "problem_solving_method": "We separated P12 into deterministic financial calculations and correction-first user workflows: integer paisa for all money, exact half-up DPS simulation, ledger-date monthly aggregation, explainable category forecasts with an early-sample floor, user-verified receipt prefilling, and anonymous cloud sync with local fallback. Published fixtures plus targeted browser regressions verified the required flows and responsive layout.",
+  "requirements": {
+    "R1": {
+      "status": "complete",
+      "evidence": "Settings configures salary; Add expense supports manual entry and editable receipt-prefilled values; api/ocr.js implements vision extraction."
+    },
+    "R2": {
+      "status": "complete",
+      "evidence": "Overview renders monthly spent vs salary, remaining money, prior-month pace, category comparison, daily/cumulative charts, largest expenses and the complete ledger; implemented in app.js renderDashboard/renderTrend/renderDaily."
+    },
+    "R3": {
+      "status": "complete",
+      "evidence": "Forecast renders remaining expected spend, projected total/balance, specific insights, per-category methodology, explainability and a non-persistent what-if simulator; implemented in app.js analyze/buildInsights/renderForecast."
+    },
+    "R4": {
+      "status": "complete",
+      "evidence": "Savings creates named item goals with target and contribution, forecast-aware affordability notes, completion dates and exact DPS compound-interest comparison; implemented in app.js pocketPlan/renderPockets/dpsInterest."
     }
+  },
+  "team_members": [
+    {
+      "registered_name": "Tanvir",
+      "github_username": "tanvirahmodrafi",
+      "major_contribution": "Designed, implemented, deployed and tested the complete Punji product: frontend workflows and responsive UI, ledger and forecast calculations, DPS goals, receipt OCR, Neon persistence, exports, safety/accessibility hardening and documentation.",
+      "evidence_paths_or_commits": [
+        "app.js",
+        "index.html",
+        "style.css",
+        "api/ocr.js",
+        "api/ledger.js",
+        "FUNCTIONALITY.md",
+        "1f6f04ede7592f404f9e1b5e0a696d2920ae1336"
+      ]
+    }
+  ],
+  "major_design_decisions": [
+    "Store all money as integer paisa so totals and the required DPS half-up rounding remain exact.",
+    "Keep forecasts deterministic and explainable, and require day 7 plus three category transactions before run-rate extrapolation to avoid misleading early alarms.",
+    "Use receipt AI only to prefill editable fields; the user verifies and explicitly saves every expense.",
+    "Use an anonymous per-browser ledger ID with Neon sync and localStorage fallback to avoid account setup while preserving data.",
+    "Use dependency-free vanilla frontend code so judges can audit and run it with any static server."
+  ],
+  "known_limitations": [
+    "There are no user accounts; clearing browser storage or changing browsers creates a different anonymous ledger.",
+    "Receipt reading depends on the configured external vision service and network access; manual entry remains available.",
+    "Savings pockets model forward plans rather than historical deposits or withdrawals.",
+    "Existing merchant capitalization is normalized, but spelling mistakes require user correction.",
+    "Arbitrary fixture JSON is not uploaded directly; bundled public cases can be selected and equivalent hidden-case values can be entered manually."
   ],
   "ai_tools_used": [
     {
       "tool": "Claude Code (Anthropic)",
-      "usage": "<how it was used>"
+      "used_for": "Implementation, refactoring and documentation assistance.",
+      "how_output_was_verified": "Reviewed against P12 rules, syntax-checked, diff-reviewed and exercised through browser workflows."
+    },
+    {
+      "tool": "OpenAI ChatGPT / Codex",
+      "used_for": "Visual asset generation, code auditing, safety/accessibility fixes and submission documentation.",
+      "how_output_was_verified": "Reviewed through source diffs, node --check, git diff --check, deterministic calculation checks and automated browser regressions."
+    },
+    {
+      "tool": "OpenRouter vision models (Google Gemini 2.5 Flash Lite / Flash)",
+      "used_for": "Receipt-field extraction at application runtime.",
+      "how_output_was_verified": "Detected values are displayed and editable before saving; success, partial-read and failed-read paths were tested."
     }
-  ]
+  ],
+  "licenses_file": "LICENSES.md",
+  "declaration": "The information above is complete and truthful to the best of the team's knowledge."
 }

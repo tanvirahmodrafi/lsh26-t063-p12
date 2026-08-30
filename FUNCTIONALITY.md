@@ -14,7 +14,7 @@ Punji is a personal ledger manager (Lofi-stack Hackathon 2026, problem P12, team
 
 Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur over `assets/bg.jpg`) + main content column (max 1240px). Under 800px the sidebar becomes a top bar with horizontally scrolling tabs.
 
-- **Sidebar**: brand (`assets/logo.png` mark + "Punji / Personal ledger"), nav (`.tab` buttons with `data-tab` → panes `#tab-<name>.tabpane`, `.active` toggles both), footer: `#syncStatus` (dot + saved/synced/offline, `data-state` colors the dot), "Demo case" `#caseSelect` (25 sample cases from `data/P12_personal_ledger_public.json`, options appended by JS), `#resetBtn` (confirm → clears localStorage + rotates sync id → reload).
+- **Sidebar**: brand (`assets/logo.png` mark + "Punji / Personal ledger"), nav (`.tab` buttons with `data-tab` → panes `#tab-<name>.tabpane`, `.active` toggles both), footer: `#syncStatus` (live-region dot + saved/synced/offline, `data-state` colors the dot), "Demo case" `#caseSelect` (25 sample cases from `data/P12_personal_ledger_public.json`; replacement is confirmed; selecting "— none —" unloads the demo into a blank ledger dated today), `#resetBtn` (requires typing `RESET`, then clears localStorage + rotates sync id → reload).
 - Every pane has a page header: uppercase eyebrow, h1, subtitle; Dashboard also has a "+ Add expense" button that clicks the Add tab.
 
 ### Overview (`#tab-dashboard`)
@@ -24,11 +24,11 @@ Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur ov
 - **Daily spending** `#dailyChart` — SVG bar per day (`.dbar`, grow-up animation), today's bar accent-colored, peak labeled, tooltips via `<title>`.
 - **Spending by category** `#catChart` — per category: emoji + name, blue this-month bar over thin gray last-month bar (`.bar-group/.bar-pair/.bar.this/.bar.last/.bar-label`), grow-from-left animation. `#catMonthLabel` = "April 2026 vs March 2026".
 - **Largest expenses** `#topExpenses` — top 5 this month (compact table).
-- **Transactions** `#expTable` + `#expCount` — all expenses newest-first with ✎ `data-edit` and ✕ `data-del` icon buttons; hover rows; designed empty state row.
+- **Transactions** `#expTable` + `#expCount` — all expenses newest-first with 44px ✎ `data-edit` and ✕ `data-del` icon buttons whose accessible names identify the transaction. Rows outside the active counted window carry a visible "Not counted" badge. Expense deletion shows a seven-second `#undoToast`; hover rows; designed empty state row.
 
 ### Add expense (`#tab-add`)
-- Form card `#expForm`: `#expDate` + `#expCategory` (datalist `#catList`) on one row, `#expShop`, hero amount input `#expAmount` (৳ prefix), `#expSubmitBtn` ("Save expense" / "Update expense" in edit mode), `#saveMsg`.
-- Receipt scanner card: dropzone label wrapping `#receiptFile` (input covers the zone invisibly) → client-side downscale to ≤1600px JPEG → POST `/api/ocr` → `#ocrStatus` (spinner while non-empty) → `#ocrResult` "Detected from receipt" panel (`#ocrReadList`) + values prefill the form for correction. `#receiptPreview` in `#receiptPreviewWrap`. On smaller screens the scanner card orders first.
+- Form card `#expForm`: `#expDate` (max = active ledger date) + `#expCategory` (datalist `#catList`, known categories normalized case-insensitively) on one row, `#expShop` (existing-merchant datalist `#shopList`, whitespace/case normalization), hero amount input `#expAmount` (৳ prefix), `#expSubmitBtn` ("Save expense" / "Update expense" in edit mode), `#expCancelBtn`, `#saveMsg`. Edit mode identifies the row and is cleared by Cancel or navigation away.
+- Receipt scanner card: dropzone label wrapping `#receiptFile` (input covers the zone invisibly) → client-side downscale to ≤1600px JPEG → POST `/api/ocr` → `#ocrStatus` (spinner while non-empty) → `#ocrResult` "Detected from receipt" panel (`#ocrReadList`) + readable values prefill the form for correction. `#ocrNote` says how many values were copied, or that nothing changed. Starting a scan safely cancels edit mode and reports that cancellation. `#receiptPreview` in `#receiptPreviewWrap`. On smaller screens the scanner card orders first.
 
 ### Forecast (`#tab-forecast`)
 - `#forecastStats` — 4 metric cards: spent so far (day X of Y), expected rest, projected total, expected left/SHORT (green/red).
@@ -43,7 +43,7 @@ Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur ov
 - `#pocketCards` — goal cards (`.pocket`, delete via `data-delpocket`): target, monthly contribution, expected completion (month + count), DPS value after that horizon, DPS interest earned, DPS-reaches-target month; green "DPS gets you there N months earlier" note when true; affordability note (`.note ok/warn/bad`).
 
 ### Settings (`#tab-settings`)
-- `#salaryInput`, `#todayInput` (ledger date drives "this month" + forecast split), `#exportPdf` (builds `#printReport` — a light-themed monthly report with health status, KPIs, category table, top expenses, savings goals — then `window.print()` for the browser's Save-as-PDF; report is print-media-only and lives outside `.shell`), `#exportCsv` (client-side blob download).
+- `#salaryInput`, `#todayInput` (bounded to the real current date; ledger date drives "this month" + forecast split), explicit `#settingsSave` with nearby live `#settingsMsg`, `#exportPdf` (builds `#printReport` — a light-themed monthly report with health status, KPIs, category table, top expenses, savings goals — then `window.print()` for the browser's Save-as-PDF; report is print-media-only and lives outside `.shell`), `#exportCsv` (client-side blob download).
 
 ## Data model (all money = integer paisa)
 
@@ -70,8 +70,8 @@ state = {
 
 ## Computation rules (do not change)
 
-- **Months**: "this month" = month of `state.today`; expenses dated after `today` are excluded from this-month totals.
-- **Forecast per category**: variable (≥3 tx this month) → `max(spentSoFar, round(avg(lastMonthTotal, runRate)))`, runRate = spent ÷ dayOfMonth × daysInMonth; lumpy (<3 tx) → `max(spentSoFar, lastMonthTotal)`; only-last-month → repeat; new → runRate. Leftover = salary − (spent + Σ expected-more).
+- **Months**: "this month" = month of `state.today`; expenses dated after `today` are excluded from this-month totals and visibly marked. Manual expense dates cannot exceed the ledger date. Invalid/future persisted ledger dates are clamped to the real current date at load.
+- **Forecast per category**: run-rate extrapolation requires both day 7+ and ≥3 transactions in that category. Ready variable categories with last-month history → `max(spentSoFar, round(avg(lastMonthTotal, runRate)))`, runRate = spent ÷ dayOfMonth × daysInMonth; lumpy/unready categories with history → `max(spentSoFar, lastMonthTotal)`; only-last-month → repeat; ready new category → run rate; early new category → spending so far (no extrapolation). Leftover = salary − (spent + Σ expected-more).
 - **Insights**: pace-increase (≥2 tx only), pace-decrease (spent > 0 only), largest single expense (+% of salary), largest category share, pocket affordability vs leftover, month-end shortfall. Up to 6.
 - **Pockets**: completion months = `ceil(target ÷ contribution)`, date = thisMonth + months; DPS simulated over that same horizon with the planned contribution. If forecast leftover < Σ contributions, the note states each pocket's proportional affordable share and the forecast-adjusted landing (">10 years" wording past 120 months); leftover ≤ 0 → bad note.
 - **DPS** (exact spec rule): monthly `balance += deposit; interest = round_half_up(balance × rate ÷ 12 ÷ 100)` to the paisa, joins balance. Integer arithmetic: rateBp = rate×100; interest = ⌊(2·bal·rateBp + 120000) ÷ 240000⌋.

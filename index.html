@@ -28,7 +28,7 @@
   </nav>
 
   <div class="sidebar-foot">
-    <span id="syncStatus" class="sync" data-state="ok"></span>
+    <span id="syncStatus" class="sync" data-state="ok" role="status" aria-live="polite"></span>
     <label class="case-picker">
       <span class="case-label">Demo case</span>
       <select id="caseSelect" title="Load a sample case">
@@ -139,14 +139,14 @@
     <header class="page-head">
       <div>
         <div class="eyebrow">Ledger entry</div>
-        <h1>Add an expense</h1>
+        <h1 id="expensePageTitle">Add an expense</h1>
         <p class="page-sub">Enter it manually or scan a receipt.</p>
       </div>
     </header>
 
     <div class="add-grid">
       <div class="card form-card">
-        <div class="card-head"><div><h2>Expense details</h2><p class="card-sub">Everything is editable before it's saved</p></div></div>
+        <div class="card-head"><div><h2 id="expenseFormTitle">Expense details</h2><p class="card-sub" id="expenseFormSub">Everything is editable before it's saved</p></div></div>
         <form id="expForm">
           <div class="form-row">
             <label>Date <input type="date" id="expDate" required></label>
@@ -155,12 +155,15 @@
               <datalist id="catList"></datalist>
             </label>
           </div>
-          <label>Merchant / shop <input type="text" id="expShop" required placeholder="e.g. Meena Bazar"></label>
+          <label>Merchant / shop <input type="text" id="expShop" list="shopList" required placeholder="e.g. Meena Bazar"><datalist id="shopList"></datalist></label>
           <label class="amount-label">Amount
             <span class="amount-wrap"><span class="currency">৳</span>
             <input type="number" id="expAmount" step="0.01" min="0.01" required placeholder="0.00"></span>
           </label>
-          <button type="submit" id="expSubmitBtn" class="btn primary wide">Save expense</button>
+          <div class="expense-actions">
+            <button type="submit" id="expSubmitBtn" class="btn primary wide">Save expense</button>
+            <button type="button" id="expCancelBtn" class="btn secondary hidden">Cancel edit</button>
+          </div>
         </form>
         <div id="saveMsg" class="save-msg" role="status"></div>
       </div>
@@ -180,7 +183,7 @@
         <div id="ocrResult" class="ocr-result hidden">
           <h3>Detected from receipt</h3>
           <ul id="ocrReadList"></ul>
-          <p class="ocr-note">✓ These values were copied into the form — review and correct them, then save.</p>
+          <p class="ocr-note" id="ocrNote"></p>
         </div>
       </div>
     </div>
@@ -295,6 +298,8 @@
         <div class="card-head"><div><h2>Financial settings</h2></div></div>
         <label>Monthly salary (BDT) <input type="number" id="salaryInput" step="0.01" min="0"></label>
         <label>Ledger date <input type="date" id="todayInput"></label>
+        <button type="button" id="settingsSave" class="btn primary">Save financial settings</button>
+        <div id="settingsMsg" class="save-msg" role="status" aria-live="polite"></div>
         <p class="muted small-note">The ledger date controls what Punji considers "this month" and how the forecast splits it. Loading a demo case sets it automatically.</p>
       </div>
       <div class="card">
@@ -315,6 +320,11 @@
 </div>
 
 <div id="printReport" aria-hidden="true"></div>
+
+<div id="undoToast" class="undo-toast hidden" role="status" aria-live="polite">
+  <span id="undoText"></span>
+  <button type="button" id="undoBtn" class="btn secondary">Undo</button>
+</div>
 
 <script src="app.js"></script>
 </body>

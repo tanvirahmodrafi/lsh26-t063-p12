@@ -1,63 +1,112 @@
-# 💰 Punji — Personal Ledger Manager
+# Punji — Personal Ledger Manager
 
-**Team:** LSH26-T063 · **Problem:** P12 · **Event:** Lofi-stack Hackathon 2026
+Solution for **LofiStack Hackathon 2026 — P12**
 
-A personal ledger manager for tracking salary, expenses and savings goals in BDT — with receipt-photo reading, a monthly dashboard, a data-driven forecast with written insights, and savings pockets with DPS comparison.
+## Project information
 
-## The four required items — where to find them
+- **Team:** `LSH26-T063`
+- **Team ID:** `LSH26-T063`
+- **Problem:** `P12 — Personal Ledger Manager`
+- **Repository:** <https://github.com/tanvirahmodrafi/lsh26-t063-p12>
+- **Live application:** <https://lsh26-t063-p12.vercel.app>
+- **Demo video:** Not provided
 
-1. **Salary + expenses with receipt OCR** — *Settings* tab sets salary; *Add Expense* tab accepts manual entry or a photo of a bill/receipt. The amount, date and shop are read from the image, shown to the user ("What we read from the receipt"), pre-filled into the form, and can be corrected before saving.
-2. **Monthly dashboard** — *Dashboard* tab: total spent vs salary, category breakdown (this month vs last month), largest expenses, and pace vs last month.
-3. **Forecast + insights** — *Forecast & Insights* tab: expected spending for the rest of the month, expected leftover/shortfall at month end, and 3–6 insights that name specific categories, shops and amounts (never generic advice).
-4. **Savings pockets** — *Savings Pockets* tab: pockets with name, item, target and monthly contribution. Each shows an expected completion date tied to the forecast (dates push out when the forecast leftover can't fund the full plan) and what a DPS at the stated rate would return over that time.
+> Judges will evaluate only the exact commit SHA entered in the Final Submission Form.
 
-## How to run
+## Solution summary
 
-Static frontend + one serverless function, no build step.
+Punji is a responsive BDT personal ledger for recording salary, expenses and savings goals. It accepts manual expenses or receipt photos, presents month-level spending and explainable forecasts, and compares each savings plan with a DPS using exact paisa arithmetic.
+
+## Requirements
+
+| Requirement | Status | Where to verify |
+|---|---|---|
+| R1 — Record salary and expenses manually or from a receipt image, with correction before saving | Complete | **Settings → Financial settings** and **Add expense → Expense details / Receipt scanner**; `api/ocr.js` |
+| R2 — Monthly dashboard with totals, salary comparison, category breakdown and largest expenses | Complete | **Overview** tab; spending KPIs, category chart, daily/trend charts and transaction tables |
+| R3 — Forecast remaining spend and month-end balance with concrete insights | Complete | **Forecast** tab; forecast KPIs, category methodology, “Why this forecast?”, insights and what-if simulator |
+| R4 — Savings pockets with completion estimates and DPS comparison | Complete | **Savings** tab; create a goal and review completion, affordability and DPS interest calculations |
+
+## How to test the application
+
+1. Open the [live application](https://lsh26-t063-p12.vercel.app).
+2. In **Demo case**, select `PUB-01` and confirm replacement if prompted.
+3. Check **Overview** for salary/spending totals, category comparison, transaction history and largest expenses.
+4. Open **Add expense**, enter an expense or upload a receipt, verify/correct the detected values, then save it.
+5. Edit a transaction and cancel it; delete a transaction and use the seven-second **Undo** action.
+6. Open **Forecast** to inspect the month-end projection, written insights, category rules and what-if simulator.
+7. Open **Savings**, create a goal and verify its plain-pocket completion date and DPS comparison.
+8. Choose **Demo case → — none —** to unload sample data, or use **Reset data** and type `RESET` for a complete reset.
+
+### Test or sample data
+
+The 25 published P12 cases are bundled at `data/P12_personal_ledger_public.json`. Load any case from the sidebar **Demo case** selector. Test data in the same shape can also be entered manually through Settings, Add expense and Savings; selecting “— none —” creates a clean ledger dated to the current day.
+
+## Run locally
+
+### Requirements
+
+- Python 3 (for a zero-configuration static server), or any static HTTP server
+- A modern browser
+- Optional for self-hosted serverless APIs: Node.js 20+, Vercel CLI, Neon Postgres and an OpenRouter API key
+
+### Setup
 
 ```bash
-# local (frontend only — OCR needs the API function)
-python3 -m http.server 8123   # then open http://localhost:8123
-
-# full local / deploy (Vercel)
-npm i -g vercel
-vercel env add OPENROUTER_API_KEY   # key for the OCR vision model
-vercel dev                          # local with working OCR
-vercel --prod                       # deploy
+git clone https://github.com/tanvirahmodrafi/lsh26-t063-p12.git
+cd lsh26-t063-p12
+python3 -m http.server 8123
 ```
 
-Use the **"load sample case"** dropdown (top right) to load any of the 25 public cases from `data/P12_personal_ledger_public.json`.
+Open <http://localhost:8123>. Local static development automatically uses the deployed APIs, so no private key is required to evaluate the published application.
 
-## How it works
+For your own Vercel deployment, use `.env.example` as the variable-name reference, configure `OPENROUTER_API_KEY` and `DATABASE_URL` in the Vercel project, then deploy with `vercel --prod`. Never commit real credentials.
 
-- **Money math** — all amounts are integer paisa; no floating-point currency errors.
-- **DPS rule** — implemented exactly as specified: each month `balance += deposit`, then `interest = balance × rate ÷ 12 ÷ 100` rounded **half-up to the paisa**, added to the balance (compounding).
-- **Forecast method** — per category: variable categories (3+ transactions this month) project to `max(spent so far, avg(last month total, this month run-rate))`; one-shot categories (Rent, a single utility bill) project to `max(spent so far, last month total)`; categories seen only last month are expected to repeat; new categories extrapolate their run-rate.
-- **Pocket completion** — `ceil(target ÷ contribution)` months; if the forecast leftover can't cover the sum of all pocket contributions, each pocket's affordable share is scaled down proportionally and its date pushed out (shown with a warning).
-- **Receipt OCR** — `/api/ocr` serverless function sends the image to a vision model via OpenRouter (Gemini 2.5 Flash Lite, with Flash as fallback) and returns shop/date/amount/category. The raw reading is always displayed for user verification before saving.
+## Problem-solving approach
 
-## Beyond the four requirements
+The team split P12 into deterministic financial rules and user-facing workflows. Money is stored as integer paisa, monthly analysis is derived from the active ledger date, forecasts expose the exact category rule and wait for a useful sample before extrapolating, and DPS interest follows the specified monthly half-up rounding. Published fixtures and targeted browser regression flows were used to validate load/reset, add/edit/delete, receipt correction, forecasts, goals and responsive layout.
 
-- **Financial health status** — a deterministic verdict ("On track / Watch spending / At risk / Projected deficit") derived from the forecast, with real amounts in the supporting sentence.
-- **"Why this forecast?"** — per-category explainability: which rule fired (variable / lumpy / repeat / new), the transaction count, run rate and inputs behind every projected number.
-- **What-if simulator** — non-persistent scenario tool: pick a category, reduce future spend, see the projected month-end balance change (capped so simulated spend never drops below what's already spent).
-- **PDF monthly report** — one-click, print-stylesheet-based report (health status, KPIs, category table, top expenses, savings goals with DPS interest) via the browser's Save-as-PDF; CSV export for raw expenses.
-- **Charts & polish** — animated cumulative trend, daily spending bars, salary-allocation bar, category comparison bars; premium dark UI, responsive to 390px.
+## Technology used
 
-## What's mocked / limitations
+- **Frontend:** Vanilla HTML, CSS and JavaScript; no framework or runtime dependency
+- **Backend:** Vercel Node.js serverless functions using native `fetch`
+- **Database:** Neon Postgres through its HTTP SQL API
+- **Deployment:** Vercel
+- **Other material tools:** OpenRouter vision API for receipt reading; browser/localStorage cache and offline fallback
 
-- Each browser gets an anonymous ledger id and its data is persisted to Neon Postgres via `/api/ledger` (localStorage doubles as an instant-paint cache and offline fallback). No accounts/login by design.
-- Pockets track the plan from "this month" forward; past pocket balances aren't modeled.
-- OCR category is a guess; the user confirms before saving.
+See [`LICENSES.md`](LICENSES.md) for third-party materials and AI disclosure.
 
-## Next steps
+## Team contributions
 
-- Multi-month history view; pocket balance tracking with actual deposits; shared/family ledgers; PWA offline mode.
+| Registered member | GitHub username | Major contribution | Evidence |
+|---|---|---|---|
+| Tanvir | `tanvirahmodrafi` | Designed and implemented the complete product: ledger state and calculations, responsive UI, receipt OCR workflow, Neon persistence, forecast/insights, savings/DPS logic, exports, accessibility/safety hardening, deployment and testing | `app.js`, `index.html`, `style.css`, `api/ocr.js`, `api/ledger.js`, `FUNCTIONALITY.md`; repository commits by `tanvirahmodrafi` |
 
-## Team
+Commit count alone does not represent contribution.
 
-- Tanvir (tanvirahmod.cn@gmail.com)
+## AI usage
 
-## Tech stack
+- **Claude Code (Anthropic):** assisted with implementation, refactoring and documentation. Output was reviewed against P12 rules, syntax-checked and exercised in browser workflows.
+- **OpenAI ChatGPT / Codex:** assisted with visual asset generation, code auditing, safety/accessibility fixes and submission documentation. Changes were reviewed through diffs, syntax checks and automated browser regressions.
+- **OpenRouter vision models (Google Gemini 2.5 Flash Lite / Flash):** power receipt-field extraction at runtime. Detected values are shown to the user and remain editable before saving; readable and failed-scan paths were tested.
 
-Vanilla HTML/CSS/JS (no framework, no build), Vercel serverless functions (Node), Neon Postgres for persistence (HTTP SQL API, no driver dependency), OpenRouter vision API for OCR.
+## Major design decisions
+
+- **Integer paisa throughout:** prevents floating-point currency drift and supports exact DPS half-up rounding.
+- **Explainable deterministic forecasts:** every category exposes its method and inputs; run-rate extrapolation requires day 7 and at least three category transactions to avoid alarming projections from one early expense.
+- **User correction before OCR save:** receipt AI only prefills the form and never creates a transaction automatically.
+- **Anonymous browser ledger:** a generated browser ID syncs to Neon while localStorage provides immediate loading and an offline fallback, avoiding account setup during evaluation.
+- **No frontend dependencies:** keeps the judged source small, auditable and runnable with a basic static server.
+
+## Known limitations
+
+- There are no user accounts; clearing browser storage or changing browsers creates a different anonymous ledger.
+- Receipt reading requires the configured external vision service and network access; manual entry remains available if it fails.
+- Savings pockets model a forward plan, not historical deposits or withdrawals.
+- Existing merchant names are normalized case-insensitively, but spelling mistakes still require user correction.
+- Arbitrary fixture JSON is not uploaded directly; judges can use the 25 bundled cases or enter equivalent hidden-case values through the forms.
+
+## Repository records
+
+- [`EVENT.md`](EVENT.md) — event start code and pre-event-material declaration
+- [`evaluation-manifest.json`](evaluation-manifest.json) — structured judging evidence
+- [`LICENSES.md`](LICENSES.md) — frameworks, services, templates, assets and AI disclosure
