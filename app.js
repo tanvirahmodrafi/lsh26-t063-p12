@@ -1,5 +1,5 @@
 "use strict";
-/* Taka Tracker — P12 Personal Ledger Manager. All money handled as integer paisa. */
+/* Punji — P12 Personal Ledger Manager. All money handled as integer paisa. */
 
 const CATEGORIES = ["Clothing","Education","Entertainment","Food","Groceries","Health","Mobile","Rent","Transport","Utilities"];
 const LS_KEY = "p12-ledger-v1";

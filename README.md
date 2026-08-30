@@ -1,4 +1,4 @@
-# 💰 Taka Tracker — Personal Ledger Manager
+# 💰 Punji — Personal Ledger Manager
 
 **Team:** LSH26-T063 · **Problem:** P12 · **Event:** Lofi-stack Hackathon 2026
 
