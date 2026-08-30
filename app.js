@@ -215,7 +215,7 @@ function buildInsights(a) {
     if (a.leftover >= totalContrib) {
       out.push({ cls: "", text: `Your ${state.pockets.length} savings pocket(s) need <strong>${fmt(totalContrib)}</strong>/month and the forecast leaves you <strong>${fmt(a.leftover)}</strong> — the plan is fully funded with ${fmt(a.leftover - totalContrib)} to spare.` });
     } else if (a.leftover > 0) {
-      out.push({ cls: "warn", text: `Your pockets need <strong>${fmt(totalContrib)}</strong>/month but the forecast leaves only <strong>${fmt(a.leftover)}</strong> — you're <strong>${fmt(totalContrib - a.leftover)} short</strong>; completion dates below are adjusted for that.` });
+      out.push({ cls: "warn", text: `Your pockets need <strong>${fmt(totalContrib)}</strong>/month but the forecast leaves only <strong>${fmt(a.leftover)}</strong> — you're <strong>${fmt(totalContrib - a.leftover)} short</strong>; each goal's affordability note shows the impact.` });
     } else {
       out.push({ cls: "bad", text: `The forecast ends the month <strong>${fmt(-a.leftover)} in the red</strong>, so the ${fmt(totalContrib)}/month pocket plan can't be funded at the current spending pace.` });
     }
@@ -304,6 +304,7 @@ function renderDashboard(a) {
   ).join("") || `<tr><td colspan="4" class="empty-cell">Nothing this month yet.</td></tr>`;
 
   renderTrend(a);
+  renderDaily(a);
 
   const all = [...state.expenses].sort((x, y) => y.date.localeCompare(x.date));
   $("#expCount").textContent = `(${all.length})`;
@@ -358,6 +359,62 @@ function renderTrend(a) {
   <div class="muted" style="display:flex;justify-content:space-between"><span>day 1</span><span>day ${DAYS}</span></div>`;
 }
 
+// per-day spending bars for this month
+function renderDaily(a) {
+  const el = $("#dailyChart");
+  if (!el) return;
+  const daily = new Array(a.dim + 1).fill(0);
+  for (const e of state.expenses) {
+    if (ym(e.date) !== a.thisM || e.date > state.today) continue;
+    daily[Number(e.date.slice(8, 10))] += e.amount_p;
+  }
+  const maxV = Math.max(...daily);
+  if (maxV <= 0) { el.innerHTML = `<p class="empty-msg">No spending recorded this month yet.</p>`; return; }
+  const W = 560, H = 130, PAD = 8, GAP = 2;
+  const bw = (W - 2 * PAD) / a.dim - GAP;
+  let bars = "";
+  for (let d = 1; d <= a.dim; d++) {
+    const h = daily[d] > 0 ? Math.max(2, (daily[d] / maxV) * (H - 26)) : 0;
+    const x = PAD + (d - 1) * ((W - 2 * PAD) / a.dim);
+    if (daily[d] > 0) {
+      bars += `<rect class="dbar" x="${x.toFixed(1)}" y="${(H - 14 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${d === a.dayOf ? "var(--accent)" : "var(--series-1)"}" opacity="${d === a.dayOf ? 1 : 0.75}"><title>Day ${d}: ${fmt(daily[d])}</title></rect>`;
+    }
+  }
+  const peak = daily.indexOf(maxV);
+  const px = PAD + (peak - 1) * ((W - 2 * PAD) / a.dim) + bw / 2;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Daily spending this month">
+    <line x1="${PAD}" y1="${H - 14}" x2="${W - PAD}" y2="${H - 14}" stroke="var(--baseline)" stroke-width="1"/>
+    ${bars}
+    <text x="${Math.min(Math.max(px, 40), W - 60)}" y="${Math.max(10, H - 20 - (maxV / maxV) * (H - 26))}" text-anchor="middle" font-size="10" fill="var(--ink-2)">${fmt(maxV)}</text>
+    <text x="${PAD}" y="${H - 2}" font-size="10" fill="var(--muted)">day 1</text>
+    <text x="${W - PAD}" y="${H - 2}" text-anchor="end" font-size="10" fill="var(--muted)">day ${a.dim}</text>
+  </svg>`;
+}
+
+// stacked salary-allocation bar: spent | expected more | leftover
+function renderBudgetBar(a) {
+  const el = $("#budgetBar");
+  if (!el) return;
+  const card = document.getElementById("budgetCard");
+  if (state.salary_p <= 0) { if (card) card.classList.add("hidden"); return; }
+  if (card) card.classList.remove("hidden");
+  const over = a.leftover < 0;
+  const total = Math.max(state.salary_p, a.projectedTotal);
+  const segs = [
+    { label: "Spent so far", v: a.totalThis, color: "var(--series-1)" },
+    { label: "Expected rest", v: a.expectedMore, color: "rgba(57,135,229,0.45)" },
+    over ? { label: "Over salary", v: -a.leftover, color: "var(--critical)" }
+         : { label: "Left over", v: a.leftover, color: "var(--good)" },
+  ];
+  el.innerHTML = `<div class="budget-track">` +
+    segs.filter(s => s.v > 0).map(s =>
+      `<div class="budget-seg" style="width:${(s.v * 100 / total).toFixed(2)}%;background:${s.color}" title="${s.label}: ${fmt(s.v)}"></div>`
+    ).join("") + `</div>
+    <div class="budget-legend">` +
+    segs.map(s => `<span class="legend-item"><span class="swatch" style="background:${s.color}"></span>${s.label} · <strong>${fmt(Math.abs(s.v))}</strong></span>`).join("") +
+    `</div>`;
+}
+
 function renderForecast(a) {
   $("#forecastStats").innerHTML =
     statTile("Spent so far", fmt(a.totalThis), `day ${a.dayOf} of ${a.dim}, ${monthName(a.thisM)}`) +
@@ -365,6 +422,8 @@ function renderForecast(a) {
     statTile("Projected month total", fmt(a.projectedTotal), `vs ${fmt(state.salary_p)} salary`) +
     statTile(a.leftover >= 0 ? "Expected left at month end" : "Expected SHORT at month end",
       fmt(Math.abs(a.leftover)), a.leftover >= 0 ? "on track" : "over salary", a.leftover >= 0 ? "good" : "bad");
+
+  renderBudgetBar(a);
 
   $("#insightsList").innerHTML = buildInsights(a).map(i => `<li class="${i.cls}">${i.text}</li>`).join("")
     || `<li>Add expenses (or load a sample case) to get insights.</li>`;

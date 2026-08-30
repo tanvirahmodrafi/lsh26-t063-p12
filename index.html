@@ -77,6 +77,16 @@
         <div class="card">
           <div class="card-head">
             <div>
+              <h2>Daily spending</h2>
+              <p class="card-sub" id="dailyLabel">Per-day outflow this month</p>
+            </div>
+          </div>
+          <div id="dailyChart"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
               <h2>Transactions <span class="muted" id="expCount"></span></h2>
               <p class="card-sub">All recorded expenses, newest first</p>
             </div>
@@ -182,6 +192,11 @@
     </header>
 
     <div class="stat-row" id="forecastStats"></div>
+
+    <div class="card" id="budgetCard">
+      <div class="card-head"><div><h2>Salary allocation</h2><p class="card-sub">Where this month's salary is projected to go</p></div></div>
+      <div id="budgetBar"></div>
+    </div>
 
     <div class="card">
       <div class="card-head"><div><h2>Insights</h2><p class="card-sub">Patterns detected from your actual ledger</p></div></div>
