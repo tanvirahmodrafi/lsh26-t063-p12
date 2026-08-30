@@ -123,6 +123,8 @@ function loadCase(c) {
   nextId = 1000;
   save();
   renderAll();
+  editingId = null;
+  $("#expDate").value = state.today; // new ledger month — realign the entry form
 }
 
 // ---------- analytics ----------
@@ -590,6 +592,9 @@ function renderPockets(a) {
 function renderSettings() {
   $("#salaryInput").value = (state.salary_p / 100).toFixed(2);
   $("#todayInput").value = state.today;
+  // default the expense form's date to the ledger's "today" so new entries
+  // land inside the tracked month (demo cases live in a different month than real time)
+  if (!editingId && !$("#expDate").value) $("#expDate").value = state.today;
 }
 
 function renderAll() {
@@ -690,9 +695,21 @@ function setupEvents() {
       state.expenses.push({ id: "U" + (nextId++), ...rec });
     }
     save(); renderAll();
-    $("#saveMsg").textContent = "✓ Saved.";
-    setTimeout(() => { $("#saveMsg").textContent = ""; }, 2500);
+    const thisM = ym(state.today);
+    const msgEl = $("#saveMsg");
+    if (ym(rec.date) !== thisM) {
+      msgEl.className = "save-msg warn";
+      msgEl.innerHTML = `⚠ Saved, but it's dated <strong>${rec.date}</strong> while your ledger month is <strong>${monthName(thisM)}</strong> — it won't count in this month's dashboard or forecast. Edit the expense date, or change the ledger date in Settings.`;
+    } else if (rec.date > state.today) {
+      msgEl.className = "save-msg warn";
+      msgEl.innerHTML = `⚠ Saved, but it's dated after your ledger date (<strong>${state.today}</strong>), so it isn't counted yet.`;
+    } else {
+      msgEl.className = "save-msg";
+      msgEl.textContent = "✓ Saved.";
+      setTimeout(() => { if (!msgEl.classList.contains("warn")) msgEl.textContent = ""; }, 2500);
+    }
     ev.target.reset();
+    $("#expDate").value = state.today;
     $("#ocrResult").classList.add("hidden");
     $("#receiptPreviewWrap").classList.add("hidden");
   });
@@ -711,7 +728,10 @@ function setupEvents() {
 
   $("#dpsRate").addEventListener("change", () => { state.dpsRate = Number($("#dpsRate").value) || 0; save(); renderAll(); });
   $("#salaryInput").addEventListener("change", () => { state.salary_p = toPaisa($("#salaryInput").value) || 0; save(); renderAll(); });
-  $("#todayInput").addEventListener("change", () => { state.today = $("#todayInput").value; save(); renderAll(); });
+  $("#todayInput").addEventListener("change", () => {
+    state.today = $("#todayInput").value; save(); renderAll();
+    if (!editingId) $("#expDate").value = state.today;
+  });
 
   document.body.addEventListener("click", (ev) => {
     const del = ev.target.dataset.del;

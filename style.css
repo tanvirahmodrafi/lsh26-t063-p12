@@ -234,6 +234,8 @@ input[type="date"] { color-scheme: dark; }
 .amount-wrap .currency { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; }
 .amount-wrap input { margin-top: 0; padding-left: 30px; height: 52px; font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .save-msg { color: var(--good); font-size: 13px; margin-top: 10px; min-height: 18px; }
+.save-msg.warn { color: var(--warning); }
+.save-msg.warn strong { color: var(--ink); }
 .small-note { font-size: 12px; margin-top: 2px; }
 
 /* ============ add-expense layout ============ */
