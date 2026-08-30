@@ -43,7 +43,7 @@ Desktop app shell: fixed left **sidebar** (236px, translucent + backdrop blur ov
 - `#pocketCards` — goal cards (`.pocket`, delete via `data-delpocket`): target, monthly contribution, expected completion (month + count), DPS value after that horizon, DPS interest earned, DPS-reaches-target month; green "DPS gets you there N months earlier" note when true; affordability note (`.note ok/warn/bad`).
 
 ### Settings (`#tab-settings`)
-- `#salaryInput`, `#todayInput` (ledger date drives "this month" + forecast split), export buttons `#exportJson` / `#exportCsv` (client-side blob downloads).
+- `#salaryInput`, `#todayInput` (ledger date drives "this month" + forecast split), `#exportPdf` (builds `#printReport` — a light-themed monthly report with health status, KPIs, category table, top expenses, savings goals — then `window.print()` for the browser's Save-as-PDF; report is print-media-only and lives outside `.shell`), `#exportCsv` (client-side blob download).
 
 ## Data model (all money = integer paisa)
 

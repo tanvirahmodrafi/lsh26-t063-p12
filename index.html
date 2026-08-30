@@ -300,9 +300,10 @@
       <div class="card">
         <div class="card-head"><div><h2>Data</h2></div></div>
         <div class="btn-row">
-          <button id="exportJson" class="btn secondary">⬇ Ledger as JSON</button>
+          <button id="exportPdf" class="btn primary">⬇ Download PDF report</button>
           <button id="exportCsv" class="btn secondary">⬇ Expenses as CSV</button>
         </div>
+        <p class="muted small-note">The PDF report is a clean monthly summary — dashboard numbers, health status, category breakdown, largest expenses and savings goals — generated via your browser's print dialog (choose "Save as PDF").</p>
       </div>
     </div>
   </section>
@@ -312,6 +313,9 @@
 </div>
 
 </div>
+
+<div id="printReport" aria-hidden="true"></div>
+
 <script src="app.js"></script>
 </body>
 </html>

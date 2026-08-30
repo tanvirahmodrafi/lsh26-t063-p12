@@ -600,6 +600,68 @@ function renderAll() {
   renderSettings();
 }
 
+// monthly PDF report — rendered into #printReport, emitted via the browser print dialog
+function buildPrintReport(a) {
+  const el = document.getElementById("printReport");
+  if (!el) return;
+  const healthLabel = $("#healthStatusLabel")?.textContent || "";
+  const healthText = $("#healthStatusText")?.textContent || "";
+  const cats = Object.entries(a.forecast).sort((x, y) => y[1].projected - x[1].projected);
+  const monthExpenses = state.expenses
+    .filter(e => ym(e.date) === a.thisM && e.date <= state.today)
+    .sort((x, y) => y.amount_p - x.amount_p);
+  const totalContrib = state.pockets.reduce((s, p) => s + p.contrib_p, 0);
+  const genDate = state.today;
+
+  el.innerHTML = `
+  <div class="pr-head">
+    <img src="assets/logo.png" alt="" class="pr-logo">
+    <div>
+      <div class="pr-title">Punji — Monthly Ledger Report</div>
+      <div class="pr-sub">${monthName(a.thisM)} · generated ${genDate} · Team LSH26-T063</div>
+    </div>
+  </div>
+
+  <div class="pr-status">${healthLabel} — ${healthText}</div>
+
+  <table class="pr-kpis"><tr>
+    <td><span>Salary</span><strong>${fmt(state.salary_p)}</strong></td>
+    <td><span>Spent (day ${a.dayOf} of ${a.dim})</span><strong>${fmt(a.totalThis)}</strong></td>
+    <td><span>Projected month total</span><strong>${fmt(a.projectedTotal)}</strong></td>
+    <td><span>${a.leftover >= 0 ? "Expected left at month end" : "Expected short at month end"}</span><strong>${fmt(Math.abs(a.leftover))}</strong></td>
+  </tr></table>
+
+  <h3>Spending by category — ${monthName(a.thisM)} vs ${monthName(a.lastM)}</h3>
+  <table class="pr-table">
+    <thead><tr><th>Category</th><th class="n">Spent so far</th><th class="n">Last month</th><th class="n">Expected more</th><th class="n">Projected total</th></tr></thead>
+    <tbody>${cats.map(([cat, v]) =>
+      `<tr><td>${cat}</td><td class="n">${fmt(v.thisM)}</td><td class="n">${fmt(v.lastM)}</td><td class="n">${fmt(v.more)}</td><td class="n">${fmt(v.projected)}</td></tr>`).join("")}
+    </tbody>
+  </table>
+
+  <h3>Largest expenses this month</h3>
+  <table class="pr-table">
+    <thead><tr><th>Date</th><th>Category</th><th>Shop</th><th class="n">Amount</th></tr></thead>
+    <tbody>${monthExpenses.slice(0, 10).map(e =>
+      `<tr><td>${e.date}</td><td>${e.category}</td><td>${e.shop}</td><td class="n">${fmt(e.amount_p)}</td></tr>`).join("") ||
+      `<tr><td colspan="4">No expenses recorded this month.</td></tr>`}
+    </tbody>
+  </table>
+
+  ${state.pockets.length ? `
+  <h3>Savings goals${totalContrib ? ` — ${fmt(totalContrib)}/month planned` : ""}</h3>
+  <table class="pr-table">
+    <thead><tr><th>Goal</th><th>Item</th><th class="n">Target</th><th class="n">Monthly</th><th class="n">Completion</th><th class="n">DPS @ ${state.dpsRate}% interest</th></tr></thead>
+    <tbody>${state.pockets.map(pk => {
+      const plan = pocketPlan(pk, a);
+      return `<tr><td>${pk.name}</td><td>${pk.item}</td><td class="n">${fmt(pk.target_p)}</td><td class="n">${fmt(pk.contrib_p)}</td><td class="n">${monthName(plan.doneYm)} (${plan.planMonths} mo)</td><td class="n">+${fmt(plan.dpsInterestTotal)}</td></tr>`;
+    }).join("")}
+    </tbody>
+  </table>` : ""}
+
+  <div class="pr-foot">Punji · Personal Ledger Manager · Lofi-stack Hackathon 2026 · P12</div>`;
+}
+
 // ---------- events ----------
 function setupEvents() {
   document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
@@ -679,8 +741,9 @@ function setupEvents() {
   });
   $("#whatIfAmount").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); runWhatIf(); } });
 
-  $("#exportJson").addEventListener("click", () => {
-    download("punji-ledger.json", JSON.stringify({ state, nextId }, null, 2), "application/json");
+  $("#exportPdf").addEventListener("click", () => {
+    buildPrintReport(analyze());
+    window.print();
   });
   $("#exportCsv").addEventListener("click", () => {
     const rows = [["id","date","category","shop","amount_bdt"],

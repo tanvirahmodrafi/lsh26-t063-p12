@@ -384,6 +384,36 @@ input[type="date"] { color-scheme: dark; }
 .empty-msg { color: var(--muted); font-size: 13px; text-align: center; padding: 26px 12px; margin: 0; }
 .empty-cell { text-align: center; color: var(--muted); padding: 26px 12px !important; }
 
+/* ============ PDF report (print only) ============ */
+#printReport { display: none; }
+@media print {
+  body::before, body::after { display: none; }
+  .shell { display: none !important; }
+  body { background: #fff; color: #111; }
+  #printReport {
+    display: block; color: #111; font-size: 12px; line-height: 1.5;
+    font-family: Inter, ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+  }
+  .pr-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .pr-logo { width: 42px; height: 42px; border-radius: 10px; }
+  .pr-title { font-size: 20px; font-weight: 700; }
+  .pr-sub { font-size: 11px; color: #666; }
+  .pr-status {
+    border: 1px solid #ddd; border-left: 4px solid #4f8ef7; border-radius: 6px;
+    padding: 8px 12px; margin-bottom: 14px; font-size: 12px;
+  }
+  .pr-kpis { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  .pr-kpis td { border: 1px solid #ddd; padding: 8px 12px; }
+  .pr-kpis span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #777; }
+  .pr-kpis strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+  #printReport h3 { font-size: 13px; margin: 16px 0 6px; }
+  .pr-table { width: 100%; border-collapse: collapse; }
+  .pr-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #777; border-bottom: 1px solid #bbb; padding: 5px 8px; }
+  .pr-table td { border-bottom: 1px solid #e5e5e5; padding: 5px 8px; }
+  .pr-table .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .pr-foot { margin-top: 18px; font-size: 10px; color: #888; text-align: center; }
+}
+
 /* ============ responsive ============ */
 @media (max-width: 1099px) {
   .sidebar { width: 200px; }
