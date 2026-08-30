@@ -82,8 +82,9 @@ main { padding: 20px 24px 60px; max-width: 1100px; margin: 0 auto; }
 .table td { padding: 6px 8px; border-bottom: 1px solid var(--grid); color: var(--ink-2); }
 .table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
 .table-scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; }
-.del-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+.del-btn, .edit-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
 .del-btn:hover { color: var(--critical); }
+.edit-btn:hover { color: var(--accent); }
 
 /* forms */
 form label { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 10px; }

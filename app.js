@@ -2,6 +2,8 @@
 /* Punji — P12 Personal Ledger Manager. All money handled as integer paisa. */
 
 const CATEGORIES = ["Clothing","Education","Entertainment","Food","Groceries","Health","Mobile","Rent","Transport","Utilities"];
+const CAT_EMOJI = { Clothing:"👕", Education:"📚", Entertainment:"🎬", Food:"🍜", Groceries:"🛒", Health:"💊", Mobile:"📱", Rent:"🏠", Transport:"🚌", Utilities:"💡" };
+const catIcon = (c) => CAT_EMOJI[c] || "🧾";
 const LS_KEY = "p12-ledger-v1";
 // When served from a plain file server (local dev), the serverless functions
 // don't exist locally — fall back to the production API.
@@ -70,6 +72,14 @@ const syncId = (() => {
   return id;
 })();
 let syncTimer = null;
+let editingId = null;
+function download(name, content, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 function setSyncStatus(txt) { const el = document.getElementById("syncStatus"); if (el) el.textContent = txt; }
 function pushToCloud() {
   clearTimeout(syncTimer);
@@ -270,22 +280,65 @@ function renderDashboard(a) {
   $("#catChart").innerHTML = cats.map(([cat, v]) => {
     const w1 = Math.max(0.5, (v.thisM * 100) / maxV);
     const w0 = Math.max(0.5, (v.lastM * 100) / maxV);
-    return `<div class="bar-group"><div class="cat">${cat}</div><div class="bar-pair">
+    return `<div class="bar-group"><div class="cat">${catIcon(cat)} ${cat}</div><div class="bar-pair">
       <div class="bar this" style="width:${w1}%"><span class="bar-label">${fmt(v.thisM)}</span></div>
       <div class="bar last" style="width:${w0}%"></div>
     </div></div>`;
   }).join("") || `<p class="muted">No expenses yet — add one or load a sample case.</p>`;
 
   $("#topExpenses tbody").innerHTML = a.largest.map(e =>
-    `<tr><td>${e.date}</td><td>${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td></tr>`
+    `<tr><td>${e.date}</td><td>${catIcon(e.category)} ${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td></tr>`
   ).join("") || `<tr><td class="muted">Nothing this month yet.</td></tr>`;
+
+  renderTrend(a);
 
   const all = [...state.expenses].sort((x, y) => y.date.localeCompare(x.date));
   $("#expCount").textContent = `(${all.length})`;
   $("#expTable tbody").innerHTML = all.map(e =>
-    `<tr><td>${e.date}</td><td>${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td>
-     <td><button class="del-btn" data-del="${e.id}" title="delete">✕</button></td></tr>`
+    `<tr><td>${e.date}</td><td>${catIcon(e.category)} ${e.category}</td><td>${e.shop}</td><td class="num">${fmt(e.amount_p)}</td>
+     <td><button class="edit-btn" data-edit="${e.id}" title="edit">✎</button>
+         <button class="del-btn" data-del="${e.id}" title="delete">✕</button></td></tr>`
   ).join("");
+}
+
+// cumulative daily spend, this month vs last, as an inline SVG line chart
+function renderTrend(a) {
+  const el = $("#trendChart");
+  if (!el) return;
+  const cum = (ymStr, upToDay) => {
+    const days = daysInMonth(ymStr);
+    const daily = new Array(days + 1).fill(0);
+    for (const e of state.expenses) {
+      if (ym(e.date) !== ymStr) continue;
+      const d = Number(e.date.slice(8, 10));
+      if (upToDay && d > upToDay) continue;
+      daily[d] += e.amount_p;
+    }
+    const out = [];
+    let run = 0;
+    const lim = upToDay || days;
+    for (let d = 1; d <= lim; d++) { run += daily[d]; out.push(run); }
+    return out;
+  };
+  const thisSeries = cum(a.thisM, a.dayOf);
+  const lastSeries = cum(a.lastM, null);
+  const maxY = Math.max(1, ...thisSeries, ...lastSeries, state.salary_p);
+  const W = 560, H = 170, PAD = 8, DAYS = Math.max(a.dim, lastSeries.length);
+  const x = (d) => PAD + ((d - 1) / (DAYS - 1)) * (W - 2 * PAD);
+  const y = (v) => H - PAD - (v / maxY) * (H - 2 * PAD);
+  const path = (s) => s.map((v, i) => `${i ? "L" : "M"}${x(i + 1).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const salaryY = y(state.salary_p).toFixed(1);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cumulative spending, this month vs last month">
+    <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--baseline)" stroke-width="1"/>
+    <line x1="${PAD}" y1="${salaryY}" x2="${W - PAD}" y2="${salaryY}" stroke="var(--grid)" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="${W - PAD}" y="${Number(salaryY) < 14 ? Number(salaryY) + 12 : Number(salaryY) - 4}" text-anchor="end" font-size="10" fill="var(--muted)">salary ${fmt(state.salary_p)}</text>
+    <path d="${path(lastSeries)}" fill="none" stroke="var(--series-0)" stroke-width="2" stroke-linejoin="round"/>
+    <path d="${path(thisSeries)}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
+    ${thisSeries.length ? `<circle cx="${x(thisSeries.length)}" cy="${y(thisSeries[thisSeries.length - 1])}" r="3.5" fill="var(--series-1)"/>
+    <text x="${Math.min(x(thisSeries.length) + 6, W - 70)}" y="${Math.max(12, y(thisSeries[thisSeries.length - 1]) - 6)}" font-size="10" fill="var(--ink-2)">${fmt(thisSeries[thisSeries.length - 1])}</text>` : ""}
+    <text x="${PAD}" y="${H - PAD + 0}" font-size="0"> </text>
+  </svg>
+  <div class="muted" style="display:flex;justify-content:space-between"><span>day 1</span><span>day ${DAYS}</span></div>`;
 }
 
 function renderForecast(a) {
@@ -357,13 +410,20 @@ function setupEvents() {
 
   $("#expForm").addEventListener("submit", (ev) => {
     ev.preventDefault();
-    state.expenses.push({
-      id: "U" + (nextId++),
+    const rec = {
       date: $("#expDate").value,
       category: $("#expCategory").value.trim(),
       shop: $("#expShop").value.trim(),
       amount_p: toPaisa($("#expAmount").value),
-    });
+    };
+    if (editingId) {
+      const e = state.expenses.find(x => x.id === editingId);
+      if (e) Object.assign(e, rec);
+      editingId = null;
+      $("#expSubmitBtn").textContent = "Save expense";
+    } else {
+      state.expenses.push({ id: "U" + (nextId++), ...rec });
+    }
     save(); renderAll();
     $("#saveMsg").textContent = "✓ Saved.";
     setTimeout(() => { $("#saveMsg").textContent = ""; }, 2500);
@@ -391,8 +451,30 @@ function setupEvents() {
   document.body.addEventListener("click", (ev) => {
     const del = ev.target.dataset.del;
     const delP = ev.target.dataset.delpocket;
+    const edit = ev.target.dataset.edit;
     if (del) { state.expenses = state.expenses.filter(e => e.id !== del); save(); renderAll(); }
     if (delP) { state.pockets = state.pockets.filter(p => p.id !== delP); save(); renderAll(); }
+    if (edit) {
+      const e = state.expenses.find(x => x.id === edit);
+      if (e) {
+        editingId = edit;
+        $("#expDate").value = e.date;
+        $("#expCategory").value = e.category;
+        $("#expShop").value = e.shop;
+        $("#expAmount").value = (e.amount_p / 100).toFixed(2);
+        $("#expSubmitBtn").textContent = "Update expense";
+        document.querySelector('[data-tab="add"]').click();
+      }
+    }
+  });
+
+  $("#exportJson").addEventListener("click", () => {
+    download("punji-ledger.json", JSON.stringify({ state, nextId }, null, 2), "application/json");
+  });
+  $("#exportCsv").addEventListener("click", () => {
+    const rows = [["id","date","category","shop","amount_bdt"],
+      ...state.expenses.map(e => [e.id, e.date, e.category, e.shop, (e.amount_p / 100).toFixed(2)])];
+    download("punji-expenses.csv", rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv");
   });
 
   $("#resetBtn").addEventListener("click", () => {

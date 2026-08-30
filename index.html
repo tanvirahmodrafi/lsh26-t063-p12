@@ -46,6 +46,14 @@
       </div>
     </div>
     <div class="card">
+      <h2>Cumulative spending <span class="muted" id="trendLabel">— this month vs last</span></h2>
+      <div class="legend">
+        <span class="legend-item"><span class="swatch s1"></span>This month</span>
+        <span class="legend-item"><span class="swatch s0"></span>Last month</span>
+      </div>
+      <div id="trendChart"></div>
+    </div>
+    <div class="card">
       <h2>All expenses <span class="muted" id="expCount"></span></h2>
       <div class="table-scroll">
         <table class="table" id="expTable">
@@ -83,7 +91,7 @@
           </label>
           <label>Shop <input type="text" id="expShop" required placeholder="e.g. Meena Bazar"></label>
           <label>Amount (BDT) <input type="number" id="expAmount" step="0.01" min="0.01" required placeholder="0.00"></label>
-          <button type="submit" class="primary">Save expense</button>
+          <button type="submit" id="expSubmitBtn" class="primary">Save expense</button>
         </form>
         <div id="saveMsg" class="save-msg"></div>
       </div>
@@ -138,6 +146,13 @@
       <label>Monthly salary (BDT) <input type="number" id="salaryInput" step="0.01" min="0"></label>
       <label>Today's date <input type="date" id="todayInput"></label>
       <p class="muted">"Today" controls which month is "this month" and how the forecast splits the month. Loading a sample case sets it automatically.</p>
+    </div>
+    <div class="card">
+      <h2>Export</h2>
+      <div style="display:flex;gap:10px">
+        <button id="exportJson" class="ghost">⬇ Ledger as JSON</button>
+        <button id="exportCsv" class="ghost">⬇ Expenses as CSV</button>
+      </div>
     </div>
   </section>
 </main>
